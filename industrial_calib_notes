@@ -1,0 +1,19 @@
+intrinsic_cal calibration nodes: 
+ical_srv -- intrinsic calibration using basic services 
+rail_cal -- dedicated rail calibration 
+robocyl_ical -- intrinsic calibraton on the robocylinder 
+robocyl_vcal -- verifies the intrinsic calibration results using robocylinder 
+robocyl_scal -- uses robocylinder to perform stereo calibration 
+robocyl_ical_8d -- an improved version of ical_srv and robocyl_ical included determination of axis of motion for rail. Target on rail only!! 
+robot_ical -- intrinsic calibration on a robot. This is very useful if you don't want to take the camera off the robot, but not as accurate.
+
+openCV: findCirclesGrid:
+
+bool findCirclesGrid(InputArray image, Size patternSize, OutputArray centers, int flags=CALIB_CB_SYMMETRIC_GRID, const Ptr<FeatureDetector>& blobDetector=new SimpleBlobDetector() )
+
+problem w/ images 42, 35, 30, 16
+  for Size patternsize(5,4), successful in all frames, but above frames always choose rows 1-4, avoiding top row
+ 
+oddly, for  Size patternsize(4,5), blob pattern is found in NONE of the images!!
+
+
