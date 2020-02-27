@@ -16,4 +16,176 @@ problem w/ images 42, 35, 30, 16
  
 oddly, for  Size patternsize(4,5), blob pattern is found in NONE of the images!!
 
+----running circle and pattern detector...
+
+1. The opencv findCirclesGrid() function is used to determine the u,v location of each circle in each image. 
+2. findCirclesGrid accepts a pointer to a blob detector of your choice. By default it uses a blob detector that returns the center of mass of the perimeter of the blob. 
+    I prefer the somewhat slower, but more accurate circle_detector.cpp which was taken from an older version of openCV. It fits an ellipse to the blob and returns the center of the ellipse. 
+    This is more accurate.
+3. All these actions are taken care of the by the ros_camera_observer.cpp object. It will even read the images from a directory of your choosing. The basic procedure for using it in your code is 
+    a. ClearTargets
+    b. ClearObservations
+    c. AddTarget
+    d. TriggerCamera
+    e. Wait for observations done
+    f. get observations
+
+4. To use the observations, each circle observed is considered an observation, and a new cost with 2 residuals is usually created and added to the Ceres problem.
+5. Once costs have been created for each observation, the solver is run to minimize the sum of squared costs. 
+6. The resulting final sum of squared cost is returned by Ceres, but I usually divide it by the number of observations to get a per-observation cost in pixel error. 
+     Not good results when:
+
+        a. The optimization does not converge. 
+
+        b. Optimization converges to a high cost location.
+     Potentially good result
+        a. Optimization converges to a low cost
+7. Once you compute the low cost solution, you should check the covariance of the solution. To do that, you add the parameter blocks of interest and tell Ceres to compute the covariance. I then take this matrix and message it into a matrix with correlation coefficients on the off diagonals, and variance values on the diagonal, rather than trying to interpret the covariance matrix itself. 
+8. If all the variances and correlation coefficients are good, I'm happy. 
+
+Now, for the kicker. The interface to the rail-calibration routine accepts a service call to take an observation. This term observation is neither a single circle as described above, nor a whole image as you suggest. It is instead a full sequence of images taken at even distances from one another. Part of the reason I did this is that with each "rail-observation" we get one more set of 6dof unknowns describing the pose of the rail relative to the target. Therefore, all these images are tied to one another. Their costs all get added to the problem with the parameter pointer pointing toward that one set of 6 doubles. Each cost was constructed with a different rail position value set. Since you are doing both x and y, you will need to define a cost with both those values in the constructor. 
+
+What I would do if I wanted to implement your method, is I would create a new service call based calibration similar to all my other ones, but the service call to the take an observation would provide the x,y values of the tool as inputs, and the user would manually enter these values into the gui before pressing take an observation. Id then have to add a new service to create a new pose whenever I moved the camera. I'm not sure if more than one pose is required for good covariance, but I'd have to check. Anyway, my guess is that it would take me a few hours to write the whole gui, new cost, and service node.  Since what I am describing is not consistent with all my other calibration service nodes, I'm not sure its worth doing, unless someone runs a simulation to verify that the results are better than the existing rail method. 
+
+
+What I'd be more interested in is having someone add another target type to the ros_camera_observer.cpp program to accept the AR-tag style target. It would be really nice if they also characterized the accuracy in which the ar-tags feature points are located. 
+
+One last detail, the ros_camera_observer.cpp has the option of loading each image, one by one from a directory. You still tell it to clear observations, clear targets, add target, trigger camera. It just grabs the next image from a file rather than from a ros camera driver. My service call oriented calibration routines use this facility and also store all necessary transform data. They can then load the images and data back to revise a calibration or to append more images. 
+
+
+--------------wsn edits to circle-detector (to bypass pattern finder?)
+
+have a surplus of centers;  try to find 25 clusters and average the centers in each cluster;
+ save these 25 mean centers as "circle centers" (really, keypoints).  Ideally, also sort them in 5x5 grid (e.g., left to right, from top row to bottow row)
+  if not 25 centers, indicates a problem;  if keypoints don't makes sense as a grid, --> problem
+
+strategy:  at top of call to circle_detector::findCircles:  centers.clear();
+ and inside contour vetting loop, centers.push_back(center);
+
+improve:  let centers be keypoints;
+  for each contour, if it passes, eval if it is close enough to an existing center to include in vector<vector<centers>>,
+   (use first "seed" entry of each vector<centers> for comparison)
+  else add a new element vector<centers> w/ this point as first member
+
+  when done, test how many centers; if not = 25, --> problem; average centers w/in each cluster;
+  try to re-sort these as 25x25 grid; 
+  if can't fit grid, reject it (by deleting keypoint(s) that does not fit?)
+
+  by implication, if have 25 centers (keypoints), then these would be sorted as a valid template fit;
+    if too few centers, --> could not fit template
+
+follow: void CircleDetectorImpl::detect(InputArray _image, std::vector<KeyPoint>& keypoints, InputArray mask)
+std::vector<KeyPoint>& keypoints ??
+
+ struct CV_EXPORTS Center
+  {
+    Point2d location;
+    double radius;
+    double confidence;
+  };
+
+vector<vector<Center> > centers;
+vector<Center> curCenters;
+vector<vector<Center> > newCenters;
+for (size_t i = 0; i < curCenters.size(); i++)
+
+
+
+double dist = norm(centers[j][centers[j].size() / 2].location - curCenters[i].location);
+
+double value = norm(pt); // L2 norm
+
+OpenCV:
+findCirclesGrid is in calib3d/src/calibinit.cpp
+it calls:
+CirclesGridFinder boxFinder(patternSize, points, parameters);
+isFound = boxFinder.findHoles();
+if (isFound)
+      {
+        switch(parameters.gridType)
+        {
+          case CirclesGridFinderParameters::SYMMETRIC_GRID:
+            boxFinder.getHoles(centers);
+            break;
+
+In circlesgrid.cpp:
+bool CirclesGridFinder::findHoles()
+{
+  switch (parameters.gridType)
+  {
+    case CirclesGridFinderParameters::SYMMETRIC_GRID:
+    {
+      std::vector<Point2f> vectors, filteredVectors, basis;
+      Graph rng(0);
+      computeRNG(rng, vectors);
+      filterOutliersByDensity(vectors, filteredVectors);
+      std::vector<Graph> basisGraphs;
+      findBasis(filteredVectors, basis, basisGraphs);
+      findMCS(basis, basisGraphs);
+      break;
+    }
+
+----OOPS...trying to draw white circles on bk images interfered w/ pattern detection;
+  after removing this debug, there were 5 failures out of 45 images.
+
+accept this; next step: convert data to form for parameter solving;
+
+-----robocyl_ical_8D.cpp----
+runCallBack is the main solver service;
+
+
+request startCallBack to initialize the problem;
+     P_ = new ceres::Problem;
+    target_to_camera_poses.clear();
+    target_to_camera_poses.reserve(100);
+    problem_initialized_ = true;
+    total_observations_  = 0;
+
+next, call: observationCallBack()
+ (this will call startCallBack, if not already initialized)
+
+I need something similar to this:
+{
+        // add a new cost to the problem for each observation
+        total_observations_ += num_observations;
+        for (int k = 0; k < num_observations; k++)
+        {
+          double image_x = camera_observations[k].image_loc_x;
+          double image_y = camera_observations[k].image_loc_y;
+          Point3d point  = camera_observations[k].target->pts_[camera_observations[k].point_id];
+          if(k==10) ROS_ERROR("target point %d = %8.3lf %8.3lf %8.3lf observed at %8.3lf %8.3lf",camera_observations[k].point_id, point.x, point.y, point.z, image_x, image_y);
+          CostFunction *cost_function = industrial_extrinsic_cal::RailICal5::Create(image_x, image_y, Dist, point);
+          P_->AddResidualBlock(cost_function, NULL, intrinsics, extrinsics, ax_ay_);
+        }  // for each observation at this camera_location
+      } // end of else (there are some observations to add)
+    }// for each linear rail position
+
+***** but read the above from a file instead (keypoints file) ****
+look at loadCallBack()
+Looks like this loads images, not pre-processed images;
+I think I want a new service that reads processed data and saves as:
+
+          // add a new cost to the problem for each observation
+          total_observations_ += num_observations;
+          for (int k = 0; k < num_observations; k++)
+          {
+            double image_x = camera_observations[k].image_loc_x;
+            double image_y = camera_observations[k].image_loc_y;
+            Point3d point  = camera_observations[k].target->pts_[camera_observations[k].point_id];
+            CostFunction *cost_function = industrial_extrinsic_cal::RailICal5::Create(image_x, image_y, Dist, point);
+            P_->AddResidualBlock(cost_function, NULL, intrinsics, extrinsics, ax_ay_);
+          }  // for each observation at this camera_location
+        } // end of else (there are some observations to add)
+
+from Chris:  w/ "observation" meaning a cg of a circle,
+"To use the observations, each circle observed is considered an observation, and a new cost with 
+2 residuals is usually created and added to the Ceres problem."
+
+also, a "rail-observation" is a collection of images all referenced to the same transform
+"all these images are tied to one another. Their costs all get added to the problem with t
+he parameter pointer pointing toward that one set of 6 doubles"
+  
+
+found: class RailICal5
+in: industrial_extrinsic_cal/include/.../ceres_cost_utils.hpp
 

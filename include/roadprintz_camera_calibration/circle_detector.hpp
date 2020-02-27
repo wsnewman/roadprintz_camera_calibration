@@ -89,5 +89,27 @@ public:
 
   CV_WRAP static Ptr<CircleDetector> create(const CircleDetector::Params& parameters = CircleDetector::Params());
 };
+    class CV_EXPORTS_W CircleDetectorImpl : public CircleDetector {
+    protected:
+
+        struct CV_EXPORTS Center {
+            Point2d location;
+            double radius;
+            double confidence;
+        };
+
+        virtual void detect(InputArray image, std::vector<KeyPoint>& keypoints, InputArray mask = noArray());
+        virtual void findCircles(InputArray image, InputArray binaryImage, std::vector<Center>& centers) const;
+
+        Params params;
+
+    public:
+        explicit CircleDetectorImpl(const CircleDetector::Params& parameters = CircleDetector::Params());
+
+        virtual void read(const FileNode& fn);
+        virtual void write(FileStorage& fs) const;
+        Point2d center_to_point(Center center);
+
+    };
 }
 #endif

@@ -475,13 +475,13 @@ CircleDetector circleDetector;
         cout<<"i_image = "<<i_image<<endl;
         Point2f center; // = centers[i];
         cvtColor(image, grayscaleImage, CV_BGR2GRAY);
-        /*
+        
        Mat binarizedImage;
         double thresh=THRESH;
         //cout<<"enter thresh (e.g. 125): ";
         //cin>>thresh;    //looked OK at 100 and 150; NOT 50  or 200; try 125
         threshold(grayscaleImage, binarizedImage, thresh, 255, THRESH_BINARY);   
-        */
+        /**/
         //bool patternfound = findCirclesGrid(grayscaleImage, patternsize, centers, CALIB_CB_CLUSTERING);  //CALIB_CB_CLUSTERING
         //bool patternfound = findCirclesGrid(grayscaleImage, patternsize, centers, CALIB_CB_ASYMMETRIC_GRID);  //CALIB_CB_CLUSTERING
         //bool patternfound = findCirclesGrid(grayscaleImage, patternsize, centers, CALIB_CB_SYMMETRIC_GRID);  //CALIB_CB_CLUSTERING
@@ -489,6 +489,16 @@ CircleDetector circleDetector;
         //bool patternfound = findCirclesGrid(grayscaleImage, patternsize, centers, CALIB_CB_SYMMETRIC_GRID,blobDetector);  //CALIB_CB_CLUSTERING
          //          successful_find = cv::findCirclesGrid(image_roi_, pattern_size, observation_pts_, cv::CALIB_CB_SYMMETRIC_GRID,
                      //                           circle_detector_ptr_);
+        //xxx wsn test:
+        //virtual void findCircles(InputArray image, InputArray binaryImage, std::vector<Center>& centers)
+        //std::vector<Center> vec_of_Centers;
+        //std::vector<cv::CircleDetectorImpl::Center> vec_of_Centers;
+        //cv::CircleDetectorImpl circleDetectorImpl;
+        //cv::CircleDetectorImpl circleDetectorImpl;
+        
+        //circleDetectorImpl.findCircles(grayscaleImage,binarizedImage,vec_of_Centers );
+        //circleDetectorImpl.findCircles(grayscaleImage,binarizedImage,vec_of_Centers );
+        
         bool patternfound = findCirclesGrid(grayscaleImage, patternsize, centers, CALIB_CB_SYMMETRIC_GRID, circle_detector_ptr_);  //CALIB_CB_CLUSTERING
                                                 
         if (patternfound) {
@@ -499,11 +509,12 @@ CircleDetector circleDetector;
                 center = centers[i_circle];
                 circle( image, center, 2, Scalar(0,0,255), 2 );
             }
+            //NEED TO SAVE THIS DATA FOR PARAMETER SOLVING!!
         } else {
             cout << "pattern not found in image"<<i_image << endl;
             failures++;
            cout<<"enter 1 for next image: ";
-           cin>>g_ans;           
+           //cin>>g_ans;           
         }
         //center = centers[i_image];
         //circle( image, center, 2, Scalar(0,0,255), 2 );
