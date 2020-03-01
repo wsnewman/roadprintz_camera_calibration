@@ -1,5 +1,6 @@
 //test findCountours; building up to camera calibration
-
+#include <iostream>
+#include <fstream>
 
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
@@ -13,6 +14,14 @@
 #include "opencv2/calib3d.hpp"
 
 #include <roadprintz_camera_calibration/circle_detector.hpp>
+
+//WOULD NEED TO CHANGE THESE FOR SPECIFIC PATTERN
+const double CIRCLE_SPACING = 0.03556;//spacing of circle array: est 1.4"
+const int N_CIRCLE_ROWS = 5;
+const int N_CIRCLE_COLS = 5;
+const double MILL_INCREMENT = 0.1; //moved sled by 0.1m each image
+
+
 
 #define DEBUG_CIRCLE_DETECTOR
 
@@ -32,6 +41,7 @@ vector<vector<Point> > contours;
 vector<Vec4i> hierarchy;
 
 vector < Mat  > g_vec_of_images;
+vector <string> g_vec_of_image_names;
 int g_n_images;
 int g_imagenum=0;
 
@@ -44,106 +54,69 @@ int g_imagenum=0;
   
   void read_images() {
       Mat image;
-      image = imread("image_0_0_0.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image); 
-      image = imread("image_1_0_0.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_2_0_0.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_3_0_0.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_4_0_0.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      
-      image = imread("image_0_1_0.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image); 
-      image = imread("image_1_1_0.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_2_1_0.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_3_1_0.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_4_1_0.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);       
-      
-      image = imread("image_0_2_0.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image); 
-      image = imread("image_1_2_0.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_2_2_0.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_3_2_0.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_4_2_0.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);       
+      g_vec_of_image_names.push_back("image_0_0_0.jpg");
+      g_vec_of_image_names.push_back("image_1_0_0.jpg");
+      g_vec_of_image_names.push_back("image_2_0_0.jpg");
+      g_vec_of_image_names.push_back("image_3_0_0.jpg");
+      g_vec_of_image_names.push_back("image_4_0_0.jpg");
 
-      image = imread("image_0_0_1.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image); 
-      image = imread("image_1_0_1.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_2_0_1.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_3_0_1.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_4_0_1.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      
-      image = imread("image_0_1_1.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image); 
-      image = imread("image_1_1_1.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_2_1_1.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_3_1_1.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_4_1_1.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);       
-      
-      image = imread("image_0_2_1.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image); 
-      image = imread("image_1_2_1.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_2_2_1.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_3_2_1.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_4_2_1.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image); 
 
-      image = imread("image_0_0_2.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image); 
-      image = imread("image_1_0_2.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_2_0_2.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_3_0_2.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_4_0_2.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
+      g_vec_of_image_names.push_back("image_0_1_0.jpg");
+      g_vec_of_image_names.push_back("image_1_1_0.jpg");
+      g_vec_of_image_names.push_back("image_2_1_0.jpg");
+      g_vec_of_image_names.push_back("image_3_1_0.jpg");
+      g_vec_of_image_names.push_back("image_4_1_0.jpg");      
       
-      image = imread("image_0_1_2.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image); 
-      image = imread("image_1_1_2.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_2_1_2.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_3_1_2.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_4_1_2.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);       
       
-      image = imread("image_0_2_2.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image); 
-      image = imread("image_1_2_2.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_2_2_2.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_3_2_2.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image);  
-      image = imread("image_4_2_2.jpg", CV_LOAD_IMAGE_COLOR);   // Read the file
-      g_vec_of_images.push_back(image); 
+      g_vec_of_image_names.push_back("image_0_2_0.jpg");
+      g_vec_of_image_names.push_back("image_1_2_0.jpg");
+      g_vec_of_image_names.push_back("image_2_2_0.jpg");
+      g_vec_of_image_names.push_back("image_3_2_0.jpg");
+      g_vec_of_image_names.push_back("image_4_2_0.jpg");        
+
+      g_vec_of_image_names.push_back("image_0_0_1.jpg");
+      g_vec_of_image_names.push_back("image_1_0_1.jpg");
+      g_vec_of_image_names.push_back("image_2_0_1.jpg");
+      g_vec_of_image_names.push_back("image_3_0_1.jpg");
+      g_vec_of_image_names.push_back("image_4_0_1.jpg");      
+
+      g_vec_of_image_names.push_back("image_0_1_1.jpg");
+      g_vec_of_image_names.push_back("image_1_1_1.jpg");
+      g_vec_of_image_names.push_back("image_2_1_1.jpg");
+      g_vec_of_image_names.push_back("image_3_1_1.jpg");
+      g_vec_of_image_names.push_back("image_4_1_1.jpg");        
+
+      g_vec_of_image_names.push_back("image_0_2_1.jpg");
+      g_vec_of_image_names.push_back("image_1_2_1.jpg");
+      g_vec_of_image_names.push_back("image_2_2_1.jpg");
+      g_vec_of_image_names.push_back("image_3_2_1.jpg");
+      g_vec_of_image_names.push_back("image_4_2_1.jpg");          
+
+      g_vec_of_image_names.push_back("image_0_0_2.jpg");
+      g_vec_of_image_names.push_back("image_1_0_2.jpg");
+      g_vec_of_image_names.push_back("image_2_0_2.jpg");
+      g_vec_of_image_names.push_back("image_3_0_2.jpg");
+      g_vec_of_image_names.push_back("image_4_0_2.jpg");          
+
+      g_vec_of_image_names.push_back("image_0_1_2.jpg");
+      g_vec_of_image_names.push_back("image_1_1_2.jpg");
+      g_vec_of_image_names.push_back("image_2_1_2.jpg");
+      g_vec_of_image_names.push_back("image_3_1_2.jpg");
+      g_vec_of_image_names.push_back("image_4_1_2.jpg");        
+
+      g_vec_of_image_names.push_back("image_0_2_2.jpg");
+      g_vec_of_image_names.push_back("image_1_2_2.jpg");
+      g_vec_of_image_names.push_back("image_2_2_2.jpg");
+      g_vec_of_image_names.push_back("image_3_2_2.jpg");
+      g_vec_of_image_names.push_back("image_4_2_2.jpg");       
       
-      g_n_images = g_vec_of_images.size();
+           
+      g_n_images = g_vec_of_image_names.size();
+      for (int i_image=0;i_image<g_n_images;i_image++) {
+          string fname = g_vec_of_image_names[i_image];
+          image = imread(fname, CV_LOAD_IMAGE_COLOR);
+          g_vec_of_images.push_back(image); 
+      }
       cout<<"loaded "<<g_n_images<<endl;
   }
 
@@ -359,6 +332,44 @@ static void on_imagebar(int, void*)
     imshow("images", image);
 }
 
+//the next fnc infers displacements from names of files;
+//this is specialized for names of the form image_3_2_1.jpg, where
+// "3" means 3*0.1m of x travel, "2" is 2*0.1m of y travel and "1" --> 1*0.1m of z travel;
+// this function must convert mill displacements into target displacements, w/ mill frame approx aligned
+// with target frame.  I.e. target x-axis is left-to-right in image, consistent w/ camera frame;
+//  target y-axis is top-to-bottom, also consistent w/ camera frame, 
+//  and target z-axis is closest-to-furthest, also consistent w/ camera frame
+// CHANGE mill recordings, for which (in this specific instance):
+//x values varied from far right to far left, increments of 100mm
+//y values varied from closest to furthest, increments of 100mm
+//z values varied from lowest to highest, increments of 100mm
+//reinterpret these: (approx) target-frame x-translation = -x_index*0.1m
+// approx target-frame y translation = -z_index*0.1m
+// approx target-frame z translation = y_index*0.1m
+
+
+void    get_dxdydz_from_image_name(string image_name, double &dx_mill,double &dy_mill,double &dz_mill) {
+    dx_mill=0;
+    dy_mill=0;
+    dz_mill=0;
+    //cout<<"FIX get_dxdydz_from_image_name!!"<<endl;
+    //the following is not very flexible: extract dx,dy,dz indices from file name, SINGLE DIGIT
+    string s_index = image_name.substr(6,1); //str.substr (3,5);
+    int x_index = stoi(s_index);
+    s_index = image_name.substr(8,1);
+    int y_index = stoi(s_index);
+    s_index = image_name.substr(10,1);
+    int z_index = stoi(s_index);
+    //convert indices into translations:
+    dx_mill = -x_index*MILL_INCREMENT;
+    dy_mill = -z_index*MILL_INCREMENT; //mill z-axis is antiparallel to target y-axis
+    dz_mill = y_index*MILL_INCREMENT; //mill y-axis is in direction of camera/target z-axis
+    cout<<"image name "<<image_name<<" implies indices "<<x_index<<", "<<y_index<<", "<<z_index<<endl;
+    cout<<"inferred displacements, approx aligned w/ target frame: "<<dx_mill<<", "<<dy_mill<<", "<<dz_mill<<endl;
+    //cout<<"enter 1: ";
+    //cin>>g_ans; 
+}
+
 
 int main(int argc, char** argv) {
     //ros::init(argc, argv, "contour_finder");
@@ -371,6 +382,9 @@ int main(int argc, char** argv) {
      return -1;
     }
     */
+    ofstream calib_output_file;
+    calib_output_file.open ("calibration_points.txt");
+
      Mat image;
     read_images();
     //image = imread(argv[1], CV_LOAD_IMAGE_COLOR);   // Read the file
@@ -500,15 +514,26 @@ CircleDetector circleDetector;
         //circleDetectorImpl.findCircles(grayscaleImage,binarizedImage,vec_of_Centers );
         
         bool patternfound = findCirclesGrid(grayscaleImage, patternsize, centers, CALIB_CB_SYMMETRIC_GRID, circle_detector_ptr_);  //CALIB_CB_CLUSTERING
-                                                
+        double dx_mill,dy_mill,dz_mill;
+                                               
         if (patternfound) {
             cout << "pattern found in image "<<i_image << endl;
+            get_dxdydz_from_image_name(g_vec_of_image_names[i_image],dx_mill,dy_mill,dz_mill);
             int ncircles = centers.size();
             cout << "found " << ncircles << " circles" << endl;
-            for (int i_circle=0;i_circle<ncircles;i_circle++) {
-                center = centers[i_circle];
-                circle( image, center, 2, Scalar(0,0,255), 2 );
+            for (int i_circle=0;i_circle<N_CIRCLE_COLS;i_circle++) {
+                for (int j_circle=0;j_circle<N_CIRCLE_ROWS;j_circle++) {
+                    int n_circle = j_circle + i_circle*N_CIRCLE_COLS;
+                    center = centers[n_circle];
+                    circle( image, center, 2, Scalar(0,0,255), 2 );
+                    calib_output_file << center.x<<", "<<center.y<<","<<j_circle*CIRCLE_SPACING<<", "<< i_circle*CIRCLE_SPACING<<", "<<dx_mill<<", "<<dy_mill<<", "<<dz_mill<<endl;
+                }
             }
+            //for (int i_circle=0;i_circle<ncircles;i_circle++) {
+            //    center = centers[i_circle];
+            //    circle( image, center, 2, Scalar(0,0,255), 2 );
+            //      calib_output_file << center.x<<", "<<center.y<<endl;
+            //}
             //NEED TO SAVE THIS DATA FOR PARAMETER SOLVING!!
         } else {
             cout << "pattern not found in image"<<i_image << endl;
@@ -522,6 +547,8 @@ CircleDetector circleDetector;
         //cout<<"enter 1 for next image: ";
         //cin>>g_ans;
     }
+       calib_output_file.close();
+
     //drawChessboardCorners(img, patternsize, Mat(centers), patternfound);
      cout<<" there were "<<failures<<" failures"<<endl;
     //int ncircles = curCenters.size();
