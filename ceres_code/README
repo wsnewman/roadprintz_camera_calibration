@@ -1,0 +1,49 @@
+Ceres code:
+
+files copied from "examples" dir of ~/ceres-solver-1.14.0/examples (and added to CMakeLists.txt)
+
+compile with: ~/ceres-solver-1.14.0$ make
+run with: ~/ceres-solver-1.14.0/examples$ ../bin/wsn_cam_calib_ceres
+(assumes that the calibration file is in the examples directory)
+
+3/3/20 results:
+intrinsics: fx, fy, cx, cy: 461.051, 417.789, 347.937, 237.745
+k1,k2,k3,p1,p2: -0.387391, 0.191686, -0.0518572, 0.000691812, -5.46368e-05
+compute_residuals(): rotation target frame w/rt cam frame: 0.101246, -0.0336197, 0.010835
+compute_residuals(): vector cam to target0 frame: 0.124678, 0.020033, 0.325687
+compute_residuals(): rot mill frame to target frame ax_ay_az: -0.0290783, -0.000752257, -0.00103808
+rms_err = 1.01749
+
+BUT, need to check the circle spacing of the template
+
+--------Explanation: (emailed to Tom 3/3/20)------------
+
+I believe all of the included information is essential (7 values per line in the calibration file).  Here's my explanation.
+
+The benefit of this calibration approach, as you well know, is that there is a much smaller number of extrinsic parameters to be identified (vs waving a target around randomly).  I claim there are 9 extrinsics (total) to be found, plus 9 intrinsic parameters (which is what we really want).
+
+We can define a "target0" frame as follows.  Consider the mill's sled starting at (dx,dy,dz) =0,0,0.  In fact, this reference point is arbitrary, since we can move to any convenient start pose and clear the digital readout to all zeros.
+From this reference pose, with the target board mounted to the sled, there is a target origin at the center of the largest circle, and there are rows and columns of circles in the pattern that define x and y axes.  (The target z axis is perpendicular to the target board).  This fully defines a "target0" frame.  There is some 6DOF transform from the camera frame to the target0 frame.  These 6 extrinsic parameters must be found.  (But at least we don't have to find 6 different sets of parameters for each of our 40 images).  I happened to have set up the camera such that the camera axes are nearly aligned with the target0 axes.  The actual 6DOF transform is to be identified, but we should expect that, once solved, the rotational transformation should be close to R_3x3 = the identity.
+
+For the target board at pose target0, we know the coordinates of each of the circles--as expressed in the target frame.  We know these circles all lie in the target-board x-y plane (and thus z=0), and we know their separations.  (Actually, I need to measure the target-board circles more carefully and enter that value in the identification code!!).  It is a simple computation to get the (target_x, target_y) values for each circle (derived from the known circle separation and the column and row indices of interest).  But we do care about getting the right correspondences between which circle (target_x,target_y) and which image center point, (pixel_i, pixel_j).  To preserve these correspondences, I record both (pixel_i, pixel_j) and (target_x, target_y) in the calibration file.  You'll notice that there is lots of repetition of (target_x, target_y) in the calibration file, since these relative coordinates in the target frame are repeatable for every pose of the target.
+
+BTW, pixel_i, pixel_j are in pixels, measured from upper left corner of the imager, and all other values are in meters.
+
+Note that (target_x, target_y) are coordinates relative to the target frame, and the target frame moves as the sled is displaced.  We need to know exactly how the target is moved for each image.  We DO know the sled dx, dy, dz values, so we should be able to compute how the target is displaced for each snapshot. Also,  the target frame orientation relative to the mill is fixed.  (the target is not bumped after mounting it to the mill). Therefore, the target frame transform for each snapshot is a pure displacement, which is a function of sled_dx, sled_dy, sled_dz. But we need to discover this function, which requires more free parameters.
+
+Note that when we move the x-axis of the sled, we know how much displacement we impose (from the digital readout), but we don't really know in what direction all of the pattern circles (i.e., the target frame) were translated.  The target was mounted such that this displacement is approximately aligned with the rows of the circle pattern--but that is not precise.  The actual displacement axis must be identified.
+
+This applies as well to the sled y and z axes.  However, we can assume (to good precision) that these axes are orthogonal.  (mills are pretty precise that way).  Thus, we only need 3 parameters to describe how all three of these mill axes are oriented relative to the target-board axes.  (e.g., an angle/axis specification relating a rotational transform between these frames).  These are an additional 3 extrinsic parameters to be identified.  Note that these 3 parameters are constant for all snapshots (assuming we did not bump the camera tripod nor the target mounted to the mill sled).  With knowledge of these 3 extrinsics (to be identified) and the three mill displacements (known and recorded from the digital readout), we can compute the coordinates of every circle center in every snapshot relative to the target0 frame.  Additionally, with knowledge of the 6DOF transform from the target0 frame to the camera frame, we can compute the 3D coordinates of every circle center expressed in the camera frame.
+
+Given the 3D coordinates of a point (center of one of the circles of the target board) in the camera frame, we can compute its projection onto the image plane (including distortion) using all 9 of the intrinsic parameters.  Through OpenCV, we also compute the centers of each of the circles, in pixels (pixel_i,pixel_j).  If all of our parameters are correct, then the computed projection should equal the OpenCV-identified pixel coordinates.  Errors between these correspondences are "residuals" to be minimized by Ceres.
+
+In the above, we have 9 intrinsic parameters and 9 extrinsic parameters.  The calibration set includes 7 values for each circle of each snapshot.
+
+There are 1,000 2-D correspondences in the calibration file.  (40 of the 45 snapshots had identified circle patterns).
+
+Really, though, finding 18 parameters to explain 2,000 correspondences should have yielded better results.  I am also disturbed that my results have significantly different fx and fx:
+fx, fy, cx, cy: 461.051, 417.789, 347.937, 237.745
+That should not have happened, since modern imagers use square pixels.
+
+From the above explanation, I don't see how you can do the calibration with less info than 7 values per line in the calibration file.  
+

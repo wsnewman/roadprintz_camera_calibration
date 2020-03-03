@@ -22,6 +22,24 @@ this code has lots of debug/diagnostic output, including checkpoints.
 
 There are several scenes for which circle detection fails and/or pattern detection fails--even when all circles are found.
 
+update 3/1/20:
+roscd roadprintz_camera_calibration
+cd images/huawei_ipcam_calib_snapshots
+rosrun roadprintz_camera_calibration test_find_patterns 
+
+runs slowly, and creates output file: calibration_points.txt
+ this contains the data in the form: i_pixel, j_pixel, x_target_frame, y_target_frame, dx_mill, dy_mill, dz_mill
+ in source code, deliberately chose to redefine mill sled axes to correspond to (very near to) target axes, x,y,z
+ still need to find the rotation transform from mill orientation to (circle) target orientation, but should be a small perturbation
+  of dtheta_x, dtheta_y, dtheta_z
+
+ post-process the calibration-data file with ceres.
+ see: wsn_ceres_notes in ~/ceres-solver-1.14.0 (in which I added a new executable as part of the "examples" directory)
+
+
+
+
+
 
 
 
