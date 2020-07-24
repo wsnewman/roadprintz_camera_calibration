@@ -1,0 +1,441 @@
+image1_rect.jpg
+
+cols: 297, 313, 328, 344, 360, 375, 390, 407
+
+trying to find 8 vertical lines;
+colnum, rms err, slope, offset = 297, 0.976323, 0.00778125, 295.104
+band_pixels = 278
+
+colnum, rms err, slope, offset = 313, 0.964112, 0.00572597, 311.376
+band_pixels = 275
+attempting to draw line from x1,y1 = 312,190 to x2,y2 = 313,370
+
+colnum, rms err, slope, offset = 328, 0.974156, 0.00349646, 327.3
+band_pixels = 282
+attempting to draw line from x1,y1 = 327,190 to x2,y2 = 328,370
+
+colnum, rms err, slope, offset = 344, 0.92948, 0.00126856, 343.564
+band_pixels = 284
+attempting to draw line from x1,y1 = 343,190 to x2,y2 = 344,370
+
+colnum, rms err, slope, offset = 360, 1.00712, 0.000529206, 359.539
+band_pixels = 282
+attempting to draw line from x1,y1 = 359,190 to x2,y2 = 359,370
+
+colnum, rms err, slope, offset = 375, 0.927012, -0.00195786, 375.443
+band_pixels = 279
+attempting to draw line from x1,y1 = 375,190 to x2,y2 = 374,370
+
+colnum, rms err, slope, offset = 390, 0.958989, -0.00421162, 391.419
+band_pixels = 277
+attempting to draw line from x1,y1 = 390,190 to x2,y2 = 389,370
+
+colnum, rms err, slope, offset = 407, 1.02305, -0.0027982, 407.116
+band_pixels = 279
+attempting to draw line from x1,y1 = 406,190 to x2,y2 = 406,370
+
+Logic:
+  in edge detection, set in threshold to 100
+  have user specify (click on?) upper-left and lower-right corners of image;
+  seek 8 vertical lines over width of image (e.g. image1, separation is 15, 16 or 17 pixels)
+  within each band, search seed corresponding to min rms error--> slope, offset
+  do search about seed slope/offset by increments e.g. 0.2pixels and dslope ~.001? (di=0.1 for dj=100)
+
+image17_rect.jpg looks nearly ideal w/rt vertical lines being parallel
+
+rosrun roadprintz_camera_calibration rp_find_template image17_rect.jpg
+then select upper-left and lower-right corners
+--> constructed grid looks very good...horizontal and vertical lines w/o perspective
+approx corners:
+
+Left button of the mouse is clicked - position (309, 201)
+upper left corner set to 309, 201
+Left button of the mouse is clicked - position (418, 370)
+lower-right corner set to 418, 370
+
+------------------redo with x/y scaling---------
+looks like image16 (image16_rescale.jpg) has the least perspective;
+        g_x0 = 307; //approx soln f
+        g_y0 = 241;
+        g_x1 = 418;
+        g_y1 = 432;
+
+        double dx = (x_end-x_start)/7.0; = 15.86 pixels
+	double dy = (y_end-y_start)/12.0; = 15.92
+
+laser-based reference points:
+        vertex1.x = x_start+3*dx;
+        vertex1.y = y_start+dy;
+        cv::circle(dst2, vertex1, 3, CV_RGB(255, 0, 0), 2);
+        vertex1.y = y_start+13*dy;
+
+point closest to bumper: i=307+3*16= 355
+                         j=432+16 = 448  (355,448) 
+
+2nd point, furthest from bumper: i = 355, 
+                                 j = 241+16= 257  (355,257)
+delta_j = 448-257 = 191 pixels;
+start w/ laser at x = 2.5m, y=0;
+goto              x = 3.6875; y=0
+corresponds to robot dx = 1.187m
+--> 6.2mm/pixel
+
+image 820x572 (shifted due to dewarping and rescaling ops)
+(see rosrun roadprintz_camera_calibration analyze_image16)
+
+conversion to robot coords:
+pix_scale = 161 pixels/m
+
+x_wrt_sys_ref_frame = 2.5m + (448 - j )/pix_scale
+ e.g. j=448 --> x = 2.5m
+      j=257 --> x = 3.686 (should be 3.6875; OK)
+
+y_wrt_sys_ref_frame = (355-i)/pix_scale
+ e.g., (418,257) is at (x,y) = (3.6875, -4* 98.9mm/square) 
+                             = (3.6875, -0.3956)
+   vs (355-418)/161 = −0.3913 (OK)
+
+CONCLUSION:
+transform from (i,j) to (x,y)/sys_ref_frame:
+x_wrt_sys_ref_frame = 2.5m + (448 - j )/pix_scale
+y_wrt_sys_ref_frame = (355-i)/pix_scale
+
+central pixel is: (820x752)/2--> (i,j) = (410,286)
+or, optical axis intersects ground plane at (x,y,z) = (1.006, 2.158, 0)
+optical axis directions: 
+  optical_i is antiparallel to y/sys_ref_frame
+  optical_j is antiparallel to x/sys_ref_frame
+  optical_z is antiparallel to z/sys_ref_frame
+  optical axis intersects ground plane at (x,y,z) = (1.006, 2.158, 0)
+
+from simu, w/ arm at new camera pose:
+rostopic echo /joint_states
+position: [0, -0.7, 0.25, -1.571, 0, 0]
+ current camera frame is located at:
+rosrun tf tf_echo system_ref_frame camera_optical_link
+- Translation: [2.583, 0.067, 2.856]
+- Rotation: in Quaternion [0.032, -0.000, 0.999, -0.000]
+            in RPY (radian) [-0.000, -0.064, -3.142]
+            in RPY (degree) [-0.006, -3.673, -179.998]
+
+  so, set camera height above ground to 2.856m
+  rescaled images are 820x572
+  try setting camera central pixel to correspond to y=0 of sys_ref_frame, i.e. 
+   ic=355 --> 
+      formula still works for:  y_wrt_sys_ref_frame = (355-i)/pix_scale
+
+  try setting camera jc central pixel = 435; 
+    x_wrt_sys_ref_frame = 2.5m + (448 - j )/pix_scale  STILL WORKS, and camera frame is consistent with current optical-frame transform
+
+
+  field of view/resolution:  
+    x-dir: (820-355)/161 = 2.888m, so try view width of 2*2.888m = 5.776m at height of 2.856m
+    y-dir: 435/161 = 2.7m; --> view is 2*2.7 = 5.4m at height 2.856m
+FOV angle: 
+     
+
+-------------OOPS---------------
+bumper is at TOP of scene;
+so: camera z-axis should be antiparallel to system z axis
+    camera x (i) axis should be PARALLEL to system y axis
+    camera y (j) axis should be PARLLEL to system x axis
+BUT: Gazebo uses x-axis for optical axis (ugh)
+
+field of view: from bumper back, 527 pixels, 
+   j= 260 corresponds to x/sys = 2.5m
+   j=572 is max, which corresponds to (572-260)/161 + 2.5m = 4.44m
+   j~46 near bumper--> x/sys = 2.5 + (46-260)/161 = 1.17m
+
+getDefaultNewCameraMatrix
+
+https://docs.opencv.org/2.4/modules/imgproc/doc/geometric_transformations.html#void%20initUndistortRectifyMap(InputArray%20cameraMatrix,%20InputArray%20distCoeffs,%20InputArray%20R,%20InputArray%20newCameraMatrix,%20Size%20size,%20int%20m1type,%20OutputArray%20map1,%20OutputArray%20map2)
+
+initUndistortRectifyMap
+
+new version for remapping:
+1000x600 dewarped images
+test squareness:
+upper-left: (457,279)
+lower-right: (572,454)
+7 squares horiz, 12 squares vertical:
+16.43 pixels per square horiz
+14.58 vertical
+ratio: 1.126; squares are wider than they are tall
+
+topic /image_rescaled:
+457,307
+571,499
+16.28 pix/square horiz
+16 pix/square vertical
+(off by 2 pixels vertically; maybe OK?)
+
+THIS USED:
+  rosrun ip_cam ipcam_fake_huawei_driver
+
+505,323 = laser ref near bumper, (x,y)/sys = (2.5m, 0)
+507,514 = laser ref away from bumperm (x,y)/sys = (3.6875,0)
+STILL 161 pixels/meter  (160.8)
+
+image16_rect_resized.png (from fake driver, and save topic image_rescaled)
+
+Left button of the mouse is clicked - position (460, 307)
+upper left corner set to 460, 307
+Left button of the mouse is clicked - position (573, 500)
+lower-right corner set to 573, 500
+(agrees w/ GIMP pixel finding)
+
+approx: col 506 is system_ref_frame x-axis
+dj = 191
+
+using: rosrun roadprintz_camera_calibration analyze_image16
+near laser ref: 506, 322
+far laser ref: 506, 514
+
+target is aligned at x=2.5 --> 2nd row of squares closest to bumper
+laser at x = 3.6875; y=0 --> furthest corner of square furthest from bumper
+  dx = 1.1875
+--> 161.7 pixels/meter
+
+how to model?
+want a linear camera w/ 660 rows, 1000 cols
+central pixel ic = 500 corresponds to y=0 in system_ref_frame
+central pixel jc = 330 corresponds to x =
+    330 = 322+8 = 2.5m + 0.05 = 2.55m;
+therefore, want camera in camera pose to be at (x,y,z)/sys = (2.55, 0, 2.856) (maybe set z = 2.86?)
+
+adjust fov until 1000 pixel width is ...
+hfov: 2*atan2(w/2,h)
+my width is 1000 pixels at 161.7 pixels/m = 6.184m
+my height is 2.86 (set this)
+angle is 2*atan2(3.092,2.86) = 2*atan(1.0811) = 2*0.82434823 = 1.649
+
+installed this in:
+roslaunch roadprintz_launch roadprintz_sim_new_cam.launch
+  uses: motoman_mh5020_description/urdf/new_camera_model.xacro
+
+in camera pose:
+rosrun tf tf_echo system_ref_frame camera_optical_link2 
+- Translation: [2.580, -0.000, 2.900]
+- Rotation: in Quaternion [-0.707, -0.000, 0.707, 0.000]
+            in RPY (radian) [-1.513, 1.571, 1.628]
+            in RPY (degree) [-86.694, 89.994, 93.305]
+(needs to be tweaked)
+height = 2.900
+ 2*atan2(3.092,2.90)=1.6348
+
+took snapshot w/ rqt...
+saved as simu_cam_snap.jpg
+blue tray has corner at:
+(21,238)
+w/rt system_ref frame, this corner is at (x,y) = (-3.0m, 2.0m)
+(re-do w/ tweaked camera mount)
+
+roslaunch roadprintz_launch roadprintz_sim_new_cam.launch 
+rosrun canned_moves home_pose_to_camera_pose
+rqt_image_view 
+
+
+------------ tweak camera model-----------
+alt_camera_joint1
+<origin rpy="1.5916 0 0" xyz="1.066 -0.061 -0.001"/>      
+
+alt_camera_joint2
+<origin rpy="0 -0.165 0" xyz="0 0 0"/> 
+
+
+alt_camera_joint3:
+<origin rpy=" 0 0 -1.5707" xyz="0 0 0"/>
+
+
+- Translation: [2.580, -0.000, 2.900]
+- Rotation: in Quaternion [-0.707, -0.000, 0.707, 0.000]
+            in RPY (radian) [-1.513, 1.571, 1.628]
+            in RPY (degree) [-86.694, 89.994, 93.305]
+
+
+alt_camera_joint2:
+ <origin rpy="0 -0.2 0" xyz="0 0 0"/> 
+-->- Translation: [2.580, -0.000, 2.900]
+- Rotation: in Quaternion [-0.695, -0.000, 0.719, 0.000]
+            in RPY (radian) [-0.000, 1.536, 3.141]
+            in RPY (degree) [-0.014, 87.994, 179.987]
+
+---original again:
+- Translation: [2.580, -0.000, 2.900]
+- Rotation: in Quaternion [-0.707, -0.000, 0.707, 0.000]
+            in RPY (radian) [-0.968, 1.571, 2.173]
+            in RPY (degree) [-55.475, 89.999, 124.525]
+
+vary alt_camera_joint2:
+<origin rpy="0 -0.17 0" xyz="0 0 0"/> 
+- Rotation: in Quaternion [-0.705, 0.000, 0.709, 0.000]
+            in RPY (radian) [0.000, 1.566, -3.141]
+            in RPY (degree) [0.013, 89.713, -179.987]
+
+<origin rpy="0 -0.168 0" xyz="0 0 0"/>
+- Translation: [2.580, -0.000, 2.900]
+- Rotation: in Quaternion [-0.706, 0.000, 0.708, 0.000]
+            in RPY (radian) [0.000, 1.568, -3.141]
+            in RPY (degree) [0.022, 89.828, -179.978]
+
+<origin rpy="0 -0.173 0" xyz="0 0 0"/> 
+- Translation: [2.580, -0.000, 2.900]
+- Rotation: in Quaternion [-0.704, -0.000, 0.710, 0.000]
+            in RPY (radian) [-0.001, 1.563, 3.141]
+            in RPY (degree) [-0.059, 89.541, 179.941]
+
+  <origin rpy="0 -0.171 0" xyz="0 0 0"/>       
+- Translation: [2.580, -0.000, 2.900]
+- Rotation: in Quaternion [-0.705, -0.000, 0.709, 0.000]
+            in RPY (radian) [-0.001, 1.565, 3.140]
+            in RPY (degree) [-0.079, 89.656, 179.921]
+
+<origin rpy="0 -0.1703 0" xyz="0 0 0"/> 
+- Translation: [2.580, -0.000, 2.900]
+- Rotation: in Quaternion [-0.705, 0.000, 0.709, 0.000]
+            in RPY (radian) [0.000, 1.565, -3.141]
+            in RPY (degree) [0.013, 89.696, -179.988]
+
+<origin rpy="0 -0.170 0" xyz="0 0 0"/>
+- Translation: [2.580, -0.000, 2.900]
+- Rotation: in Quaternion [-0.705, 0.000, 0.709, 0.000]
+            in RPY (radian) [0.000, 1.566, -3.141]
+            in RPY (degree) [0.013, 89.713, -179.987]
+
+alt_camera_joint1
+<!--origin rpy="1.5916 0 0" xyz="1.066 -0.061 -0.001"/--> 
+- Translation: [2.580, -0.000, 2.900]
+- Rotation: in Quaternion [-0.705, 0.000, 0.709, 0.000]
+            in RPY (radian) [0.000, 1.566, -3.141]
+            in RPY (degree) [0.013, 89.713, -179.987]
+
+<origin rpy="1.6 0 0" xyz="1.066 -0.061 -0.001"/>
+- Translation: [2.580, -0.000, 2.900]
+- Rotation: in Quaternion [-0.705, -0.000, 0.709, 0.000]
+            in RPY (radian) [-0.002, 1.566, 3.140]
+            in RPY (degree) [-0.095, 89.713, 179.905]
+
+
+<origin rpy="1.59 0 0" xyz="1.066 -0.061 -0.001"/> 
+- Translation: [2.580, -0.000, 2.900]
+- Rotation: in Quaternion [-0.705, 0.001, 0.709, -0.000]
+            in RPY (radian) [0.306, 1.566, -2.836]
+            in RPY (degree) [17.513, 89.699, -162.503]
+
+back to:
+      <origin rpy="1.5916 0 0" xyz="1.066 -0.061 -0.001"/> 
+- Translation: [2.580, -0.000, 2.900]
+- Rotation: in Quaternion [-0.705, -0.000, 0.709, 0.000]
+            in RPY (radian) [-0.002, 1.566, 3.140]
+            in RPY (degree) [-0.095, 89.713, 179.905]
+
+Not consistent; leave as-is;
+------------
+
+(825,398) is corner of snapshot located at 3mx3m
+(501,398) is corner of snapshot at 3m,0m
+
+compare:  huawei result (dewarped and rescaled)
+505,323 = laser ref near bumper, (x,y)/sys = (2.5m, 0)
+507,514 = laser ref away from bumper (x,y)/sys = (3.6875,0)
+STILL 161 pixels/meter  (160.8)
+
+simu_cam: x/sys=0 at i=501 (vs 507)
+simu_cam: y/sys=3m at j=398
+ vs processed huawei image:
+near laser ref: 506, 322
+far laser ref: 506, 514
+
+target is aligned at x=2.5 --> 2nd row of squares closest to bumper
+laser at x = 3.6875; y=0 --> furthest corner of square furthest from bumper
+  dx = 1.1875
+--> 161.7 pixels/meter
+--> x=2.5 + (j-322)/161.7
+&&  y=0m + (i-506)/161.7
+
+compare to simucam w/ i=501, j=398
+--> x=2.5+(398-322)/161.7 = 2.970 (close to 3m)
+&&  y= (i-506)/161.7 = (825-506)/161.7 = 1.973  (???)
+snap (823,398)--> (3m,2m)
+x= 2.5+(398-322)/161.7 = 2.97 (OK)
+y = (i-506)/161.7 = 1.96m (OK)
+
+(174,398), (3m,-2m)
+y = (174-506)/161.7 = -2.05
+so...shift camera origin over slightly (5cm)
+
+tweak camera pose;
+(162,401)-->(3,-2m)
+y = (162-506)/161.7 =  -2.127
+  adjust fov; make it smaller by 1.064
+
+retest:
+tray corner at (3m,-2)-->(44,402)
+y = (44-506)/161.7 = -2.857  (wrong dir and too much delta fov)
+1.586
+
+try fov = 1.62
+place kit tray at pose (2.743385,-1.652237)
+(169,399)-->(3m,-2m)
+y=(169-506)/161.7 = -2.084
+try fov = 1.63 (up from 1.62)
+
+(171,399)->(3m,-2m)
+y = (171-506)/161.7 = -2.0717
+
+try fov = 1.7:
+(194,393) = (3m,-2m)
+y = (194-506)/161.7 = -1.929
+split the diff: 
+
+try fov = 1.65
+(3,-2m)-->(178,396  )
+y=(178-506)/161.7 = -2.028
+
+try fov = -1.667
+(183,395) 
+y = (183-506)/161.7 = -1.9975 (OK)
+
+move try y+=4 = 2.347763
+(816,395)
+y = (816-506)/161.7 = 1.917
+x = 2.5+(395-322)/161.7 = 2.951
+
+shift camera mount by 4cm and change fov:
+fov = 1.65
+
+place kit tray at pose (2.743385,-1.652237)
+(507,396)->(3m,0m)
+--> 161.7 pixels/meter
+--> x=2.5 + (j-322)/161.7  = 2.964
+&&  y=0m + (i-506)/161.7  (506 ~407...OK)
+
+(185,396) -> (3m,-2m)
+x = 2.5 + (396-322)/161.7  =2.9576
+y = (185-506)/161.7 = −1.985
+
+place kit tray at pose (2.743385,2.347763)
+(828,397) = (3m,2m)
+y = (828-507)/161.7 = 1.985
+NICELY centered; 
+Use 160 pixels/m
+
+---------------conclusion-----------
+for camera model w/:
+ <joint name="alt_camera_joint1" type="fixed">
+<origin rpy="1.5916 0 0" xyz="1.066 -0.07 0.04"/>
+
+<horizontal_fov>1.65</horizontal_fov>
+
+use the following conversion from pixels to meters w/rt system_ref_frame:
+x = 2.5m + (j-322)/K_pix  (j+78)/K_pix  OR:
+
+K_pix = 160 pixels/meter
+i0 = 506
+j0 = -78
+
+x = (j-j0)/K_pix
+y = (i-i0)/K_pix 
+
+
+

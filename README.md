@@ -37,6 +37,44 @@ runs slowly, and creates output file: calibration_points.txt
  see: wsn_ceres_notes in ~/ceres-solver-1.14.0 (in which I added a new executable as part of the "examples" directory)
 
 
+update 3/18/20:
+had to re-do rectification, since x and y scales were different.
+Do this with:  rosrun ip_cam ipcam_fake_huawei_driver, then enter image of interest to rectify;
+ then run rqt_image_view, subscribe to the rectified image, then save this rectified image to disk
+
+opened imag17_rect.png w/ GIMP; corners are at:
+(307,200)-->(417,370)
+dj = (370-200 )/12 = 14.166
+di = ( 417-307 )/7 = 15.7
+NOT yet rectified
+
+redo w/ image17_rect and image17_rescaled
+rect: (306,200) -> (417,370)
+
+
+rescaled: corners: (307,220)->(417,407)
+di = (417-307)/7 = 15.71
+dj = (407-220)/12 = 15.58 (OK)
+
+rescaled version looks better;
+
+Then run:
+rosrun roadprintz_camera_calibration analyze_image17
+click on corners:
+Left button of the mouse is clicked - position (308, 220)
+upper left corner set to 308, 220
+Left button of the mouse is clicked - position (416, 406)
+lower-right corner set to 416, 406
+
+di = (416-308)/7  = 15.43
+dj = (406-220)/12 = 15.5
+(OK)
+
+hard-code corner coords to overlay grid:
+
+ 
+
+
 
 
 

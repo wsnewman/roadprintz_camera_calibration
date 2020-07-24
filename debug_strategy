@@ -1,0 +1,61 @@
+for (size_t contourIdx = 0; contourIdx < contours.size(); contourIdx++) {
+
+  in this loop, examine each contour, and if it passes filters, save it as:
+    center.location = box.center;
+   centers.push_back(center);
+}
+
+from "detect":
+
+vector<vector<Center> > centers;
+
+try to do some clustering:
+two vectors: vector<Point2d> cluster_centers
+and          vector<double> n_members;
+
+define a max_dist= xxx;
+
+init:  test_pt = center_to_point(centers[0]);
+       cluster_centers.push_back(test_pt);
+       n_members.push_back(1.0);
+       n_clusters=1;
+int n_centers = centers.size();
+then for (int i=1;i<n_centers;i++) {
+  test_pt = center_to_point(centers[0]);
+  n_clusters = cluster_centers.size();
+  for (int i=0;i<n_clusters;i++) {
+
+  }
+
+}
+
+  want:
+    if find a match, add point to that cluster
+    if no match to any cluster, create a new cluster
+   i_cluster=0;
+   found_fit = false;
+   while (i_cluster<n_clusters && !found_fit) {
+     if (fit(cluster_centers[i_cluster],test_pt)) {
+        add_to_cluster (...)
+        found_fit=true;
+     }
+     i_cluster++;
+   }
+
+   if (!fit) {
+      new_cluster(test_pt)
+    }
+
+needed fncs:
+
+  void make_new_cluster(Point2d test_pt,  vector<Point2d> &cluster_centers, 
+         vector<double>  &n_members)
+
+  void add_to_cluster(Point2d test_pt, int i_cluster, 
+          vector<Point2d> &cluster_centers, vector<double> &n_members)
+
+  bool fits_in_cluster(Point2d cluster_center, Point2d test_pt)
+
+xx  Point2d center_to_point(Center center);
+  
+  

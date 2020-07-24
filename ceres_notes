@@ -1,0 +1,174 @@
+ bool operator()(const T* const c_p1, // Intrinsics (9 params)
+                  const T* const c_p2, // Target origin (6 params)
+                  const T* const c_p3, // Camera skew (2 params)
+                  T* residual) const
+  {
+    T fx, fy, cx, cy, k1, k2, k3, p1, p2;      // extract intrinsics
+    extractCameraIntrinsics(c_p1, fx, fy, cx, cy, k1, k2, k3, p1, p2);
+    const T *target_aa(& c_p2[0]); // extract target's angle axis
+    const T *target_tx(& c_p2[3]); // extract target's position
+
+    // 1. Estimating the axis of motion (relative to initial target pose)
+    T nominal_axis[3]; // Nominally we move back in camera z
+    nominal_axis[0] = T(0.0);
+    nominal_axis[1] = T(0.0);
+    nominal_axis[2] = T(1.0);
+
+    T rotation_axis[3]; // Here we skew the axis of motion w/ 2 rotation params
+    rotation_axis[0] = c_p3[0];
+    rotation_axis[1] = c_p3[1];
+    rotation_axis[2] = T(0.0);
+
+    T motion_axis[3];
+    ceres::AngleAxisRotatePoint(rotation_axis, nominal_axis, motion_axis);
+
+    // 2. Move the target point backwards along the rail
+    T rail_point[3]; /** point in camera coordinates */
+    rail_point[0] = point_.x - T(rail_position_) * motion_axis[0];
+    rail_point[1] = point_.y - T(rail_position_) * motion_axis[1];
+    rail_point[2] = point_.z - T(rail_position_) * motion_axis[2];
+
+    /** transform point in rail coordinates into camera frame */
+    T camera_point[3]; /** point in camera coordinates */
+    transformPoint(target_aa, target_tx, rail_point, camera_point);
+
+    /** compute project point into image plane and compute residual */
+    T ox = T(ox_);
+    T oy = T(oy_);
+    cameraPntResidualDist(camera_point, k1, k2, k3, p1, p2, fx, fy, cx, cy, ox, oy, residual);
+
+    return true;
+  }
+
+
+WHY: 2,9,6,2 ???
+Intrinsics (9 params)
+Target origin (6 params)
+Camera skew (2 params)... try making this 3 params?
+residuals (2 components)
+
+CostFunction* cost_function
+    = new AutoDiffCostFunction<MyScalarCostFunctor, 1, 2, 2>(
+        new MyScalarCostFunctor(1.0));              ^  ^  ^
+                                                    |  |  |
+                        Dimension of residual ------+  |  |
+                        Dimension of x ----------------+  |
+                        Dimension of y -------------------+
+
+
+
+  static ceres::CostFunction* Create(const double o_x, const double o_y, double rail_position, Point3d point)
+  {
+    return new ceres::AutoDiffCostFunction<RailICal5, 2, 9, 6, 2>(new RailICal5(o_x, o_y, rail_position, point));
+  }
+
+input lines:
+x_pixel, y_pixel, x_wrt_target, y_wrt_target, dx, dy, dz
+
+
+------------------------------------
+some pointers I'll refer to:
+http://ceres-solver.org/nnls_tutorial.html#bundle-adjustment
+https://github.com/wsnewman/roadprintz_camera_calibration
+https://github.com/ros-industrial/industrial_calibration
+https://github.com/ros-industrial/industrial_calibration/blob/kinetic-devel/industrial_extrinsic_cal/include/industrial_extrinsic_cal/ceres_costs_utils.hpp
+   see class RailICal5  from line 2633.
+https://github.com/ros-industrial/industrial_calibration/blob/kinetic-devel/intrinsic_cal/src/robocyl_ical_8D.cpp
+particularly  bool runCallBack   from line 473
+also, we'll want something like lines 339-346 in a new service within this program.
+
+See current images with:
+cd .../roadprintz_camera_calibration/images/huawei_ipcam_calib_snapshots
+rosrun roadprintz_camera_calibration test_find_patterns
+
+The new service in robocyl_ical_8D.cpp will read in a file of preprocessed data of the form:
+
+i_pixel,j_pixel,x_target_frame,y_target_frame,dx_mill,dy_mill,dz_mill
+(next line for ~1000 lines)
+
+(i_pixel,j_pixel) are the coordinates, in pixels, of the centroid of one of the circles on the template, as determined by image processing (e.g. test_find_patterns)
+(x_target,y_target) are the coordinates of the corresponding circle on the template (in meters, relative to large circle w/ x-axis along rows from left to right and y-axis along columns from top to bottom).
+dx_mill, dy_mill, dz_mill are the three mill-sled displacements relative to the first image, image_0_0_0.jpg.
+
+There are 3 frames: camera_frame, mill_frame and target_frame.  The mill frame has an arbitrary origin, assigned by convenience to be coincident with the circle-pattern target's origin for image_0_0_0.jpg.  The mill axes are nearly aligned with the target-frame axes, but they are skewed by dtheta_x, dtheta_y, dtheta_z.  Thus, when the sled is moved left to right, the displacement is not perfectly parallel to the x-axis of the target frame...but pretty close.  These are 3 unknowns to be discovered in the optimization.  Given these three parameters, this completes the transform from the mill frame to the target frame, and thus every circle in every image can be assigned a metric value of (x,y,z) relative to the initial pose of the target, expressed in the target frame.
+
+The transform from the camera frame to the (initial pose of) the target frame is also unknown.  This comprises 6 more unknown parameters to be solved.
+
+There are 9 camera intrinsic parameters to be found: fx, fy, cx, cy, K1, K2, K3, P1, P2
+
+The current ceres cost fnc (line 2685 of https://github.com/ros-industrial/industrial_calibration/blob/kinetic-devel/industrial_extrinsic_cal/include/industrial_extrinsic_cal/ceres_costs_utils.hpp) is:
+
+return new ceres::AutoDiffCostFunction<RailICal5, 2, 9, 6, 2>(new RailICal5(o_x, o_y, rail_position, point));
+The numerical values are sizes of arguments:
+AutoDiffCostFunction<RailICal5, 2, 9, 6, 2>
+                                                     ^  ^  ^   ^
+                                                     |   |   |   |
+      Dimension of residual ---------+  |   |    |
+    Dimension of intrinsic param-----+   |    |
+    Dimension extrinsic params,           |    |
+      transform cam to target -------------+   |
+    Dimension of angle/axis vector,           |
+      mill frame to target frame --------------+
+
+We will want to change the dimension of the last parameter from 2 to 3, to reflect 3-D orientation transform from mill frame to target frame (not simply a single-axis sled, per the original ROS-I approach).  Correspondingly, change line 2660 of https://github.com/ros-industrial/industrial_calibration/blob/kinetic-devel/industrial_extrinsic_cal/include/industrial_extrinsic_cal/ceres_costs_utils.hpp to use this additional value.
+
+We will want to expand on test_find_patterns to record to a file each line:
+i_pixel,j_pixel,x_target_frame,y_target_frame,dx_mill,dy_mill,dz_mill
+
+that relates camera coordinates to physical coordinates for each calibration point.  (I will probably do this).
+
+We'll want a corresponding read_file function to read these correspondences from disk.  (I will probably do this as well).
+
+The read_file function will be used inside the new service within modified robocyl_ical_8D.cpp.
+Then for each such calibration line, we'll need to add new residuals, as in:
+
+          CostFunction *cost_function = industrial_extrinsic_cal::RailICal5::Create
+(image_x, image_y, Dist, point);
+P_->AddResidualBlock(cost_function, NULL, intrinsics, extrinsics, ax_ay_);
+(lines 451-452 of https://github.com/ros-industrial/industrial_calibration/blob/kinetic-devel/intrinsic_cal/src/robocyl_ical_8D.cpp)
+and we'll alter the arg ax_ay to be ax_ay_az as a 3-D angle/axis rotation.
+
+
+huawei camera calib results:
+rms_err = 0.13111
+rotation target frame w/rt cam frame: 0.0935222, -0.0349129, 0.0104951
+ vector cam to target0 frame: 0.126002, 0.0197303, 0.328227
+ rot mill frame to target frame ax_ay_az: -0.0180354, 0.000695932, -0.00109691
+intrinsics: fx, fy, cx, cy: 462.319, 420.222, 347.742, 239.411
+k1,k2,k3,p1,p2: -0.379653, 0.184346, -0.0502613, -0.000197876, 0.000178743
+
+test w/ dewarped images:
+e.g., 
+rosrun ip_cam ipcam_fake_driver (and respond w/ image number)
+ rosrun image_proc image_proc
+rqt_image_view   (and save image, e.g. image_0_0_1_rect.png)
+
+open in Gimp;
+dist 4 circles horizontal: (531,134)
+and 4 circles vertical:    (667,272)
+di = 136
+dj = 138 (close)
+
+image_2_0_1.jpg
+(241,130) to (439,315)
+di = 198
+dj = 185
+198/185 = 1.070
+fx/fy = 1.100
+
+try w/ rescaled image; start w/ image_0_0_1.jpg
+rescaled centers:
+(532,149)->(711,347)
+di= 180; dj = 198 ???
+
+image_rect:
+(532,135)->(711,316)
+
+179  ,181
+
+looks like changing size as part of image rectification also fixes x vs y scaling
+
+
+
+
+

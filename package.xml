@@ -45,11 +45,15 @@
 <build_depend>cv_bridge</build_depend>
 <build_depend>sensor_msgs</build_depend>
 <build_depend>std_srvs</build_depend>
+<build_depend>libceres-dev</build_depend>
+
   <run_depend>roscpp</run_depend>
 <run_depend>image_transport</run_depend>
 <run_depend>cv_bridge</run_depend>
 <run_depend>sensor_msgs</run_depend>
 <run_depend>std_srvs</run_depend>
+<run_depend>libceres-dev</run_depend>
+
   <!-- The export tag contains other, unspecified, tags -->
   <export>
     <!-- You can specify that this package is a metapackage here: -->

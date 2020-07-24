@@ -1,0 +1,122 @@
+extrinsic calib processing notes:
+
+nom_image boundaries of template:
+(280,193), (423,196)
+(288,369), (419,371)
+
+look for pixels from i= 280--> 425, j=190--> 370
+
+i = 280; n_edge_pixels = 5
+i = 281; n_edge_pixels = 20
+i = 282; n_edge_pixels = 24
+i = 283; n_edge_pixels = 27
+i = 284; n_edge_pixels = 27	284
+i = 285; n_edge_pixels = 23
+i = 286; n_edge_pixels = 15
+					
+i = 295; n_edge_pixels = 13
+i = 296; n_edge_pixels = 20
+i = 297; n_edge_pixels = 69
+i = 298; n_edge_pixels = 51	298
+i = 299; n_edge_pixels = 50
+i = 300; n_edge_pixels = 38
+i = 301; n_edge_pixels = 16
+i = 302; n_edge_pixels = 13
+
+i = 310; n_edge_pixels = 13
+i = 311; n_edge_pixels = 19
+i = 312; n_edge_pixels = 41
+i = 313; n_edge_pixels = 82	313
+i = 314; n_edge_pixels = 52
+i = 315; n_edge_pixels = 34
+i = 316; n_edge_pixels = 16
+i = 317; n_edge_pixels = 13
+
+
+i = 326; n_edge_pixels = 13
+i = 327; n_edge_pixels = 23
+i = 328; n_edge_pixels = 85
+i = 329; n_edge_pixels = 70	329
+i = 330; n_edge_pixels = 33
+i = 331; n_edge_pixels = 15
+i = 332; n_edge_pixels = 13
+
+i = 341; n_edge_pixels = 13
+i = 342; n_edge_pixels = 18
+i = 343; n_edge_pixels = 39
+i = 344; n_edge_pixels = 123	344
+i = 345; n_edge_pixels = 36
+i = 346; n_edge_pixels = 13
+
+i = 357; n_edge_pixels = 13
+i = 358; n_edge_pixels = 33
+i = 359; n_edge_pixels = 99	359
+i = 360; n_edge_pixels = 68
+i = 361; n_edge_pixels = 22
+i = 362; n_edge_pixels = 13
+
+i = 372; n_edge_pixels = 13
+i = 373; n_edge_pixels = 26
+i = 374; n_edge_pixels = 66
+i = 375; n_edge_pixels = 100	375
+i = 376; n_edge_pixels = 27
+i = 377; n_edge_pixels = 13
+
+i = 386; n_edge_pixels = 13
+i = 387; n_edge_pixels = 16
+i = 388; n_edge_pixels = 23
+i = 389; n_edge_pixels = 52
+i = 390; n_edge_pixels = 87	390
+i = 391; n_edge_pixels = 48
+i = 392; n_edge_pixels = 18
+i = 393; n_edge_pixels = 13
+
+i = 401; n_edge_pixels = 13
+i = 402; n_edge_pixels = 14
+i = 403; n_edge_pixels = 25
+i = 404; n_edge_pixels = 43
+i = 405; n_edge_pixels = 65	405
+i = 406; n_edge_pixels = 74
+i = 407; n_edge_pixels = 21
+i = 408; n_edge_pixels = 13
+
+i = 416; n_edge_pixels = 13
+i = 417; n_edge_pixels = 14
+i = 418; n_edge_pixels = 24
+i = 419; n_edge_pixels = 23
+i = 420; n_edge_pixels = 23	420
+i = 421; n_edge_pixels = 33
+i = 422; n_edge_pixels = 22
+i = 423; n_edge_pixels = 7
+
+sum over 9 pixel column width:
+i = 285; n_edge_pixels in vertical band = 176
+
+i = 295; n_edge_pixels in vertical band = 255
+i = 296; n_edge_pixels in vertical band = 280
+i = 297; n_edge_pixels in vertical band = 283
+i = 298; n_edge_pixels in vertical band = 283
+i = 299; n_edge_pixels in vertical band = 283
+i = 300; n_edge_pixels in vertical band = 283
+i = 301; n_edge_pixels in vertical band = 276
+
+i = 310; n_edge_pixels in vertical band = 259
+i = 311; n_edge_pixels in vertical band = 280
+i = 312; n_edge_pixels in vertical band = 283
+i = 313; n_edge_pixels in vertical band = 283
+i = 314; n_edge_pixels in vertical band = 283
+i = 315; n_edge_pixels in vertical band = 283
+i = 316; n_edge_pixels in vertical band = 277
+
+need to hunt for periodicity?
+
+try this:  take edge values over 9-col wide vertical stripe, and fit line to these values;
+  compute the rms error
+  repeat, advancing 1 col at a time
+  then analyze the outputs as best-fit intervals
+
+repeat for horizontal lines
+
+
+
+
