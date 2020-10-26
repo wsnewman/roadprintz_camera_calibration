@@ -39,7 +39,7 @@ using namespace Eigen;
 Mat src, src_gray;
 Mat dst, dst2, detected_edges;
 int edgeThresh = 1;
-int lowThreshold;
+int lowThreshold = 1;
 int const max_lowThreshold = 100;
 int ratio = 3;
 int kernel_size = 3;
@@ -111,7 +111,7 @@ vertex.y = 74;   */
     blur(src_gray, detected_edges, Size(3, 3));
 
     /// Canny detector
-   lowThreshold=max_lowThreshold; //wsn override slider
+  // lowThreshold=max_lowThreshold; //wsn override slider
     cout<<"lowThreshold = "<<lowThreshold<<endl;
     //cout<<"enter 1: ";
     //        cin>>g_ans;

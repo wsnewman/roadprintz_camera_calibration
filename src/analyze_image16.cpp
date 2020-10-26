@@ -605,8 +605,11 @@ int main(int argc, char** argv) {
     /// Load an image
     //src = imread(argv[1]);
     //src = imread("image16_rescaled.jpg");
-    src = imread("image16_rect_resized.png");
-    
+    cout<<"enter image filename: ";
+    string fname;
+    cin>>fname;
+    //src = imread("image16_rect_resized.png");
+    src = imread(fname.c_str());
 
     if (!src.data) {
         cout<<"COULD NOT READ FILE"<<endl;

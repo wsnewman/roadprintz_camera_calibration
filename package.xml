@@ -46,6 +46,10 @@
 <build_depend>sensor_msgs</build_depend>
 <build_depend>std_srvs</build_depend>
 <build_depend>libceres-dev</build_depend>
+<build_depend>pcl_generator</build_depend>
+<build_depend>LidarScanUtils</build_depend>
+
+
 
   <run_depend>roscpp</run_depend>
 <run_depend>image_transport</run_depend>
@@ -53,6 +57,10 @@
 <run_depend>sensor_msgs</run_depend>
 <run_depend>std_srvs</run_depend>
 <run_depend>libceres-dev</run_depend>
+<run_depend>pcl_generator</run_depend> 
+
+<run_depend>LidarScanUtils</run_depend> 
+
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

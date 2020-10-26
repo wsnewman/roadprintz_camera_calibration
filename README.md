@@ -73,6 +73,13 @@ dj = (406-220)/12 = 15.5
 hard-code corner coords to overlay grid:
 
  
+10/25/20:
+new program: find_extrinsics
+uses correspondences between LIDAR-based poster corners and snapshot poster corners
+used 7 files containing 1008 points.
+Found extrinsics fit to 4.4 pixels rms
+BUT transforms do not make sense
+
 
 
 
