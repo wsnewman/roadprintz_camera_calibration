@@ -1,0 +1,51 @@
+
+Run this node for precision GUI-based start/end point commands
+
+Need to have images published on topic /camera/image_rect_color
+
+for off-line debug/test, can use, e.g.:
+
+cd ~/roadprintz_ws/stella_calib_data/stella_lidar_data
+rosrun pcl_utils debug_publish_image_from_camera
+ and respond to prompt w/ filename, e.g. image1.png
+
+Note: for these images, also have intersection points saved in (u,v) pixel coords, 
+  as well as (x,y)/sys_ref_frame metric coords (see *.csv files in this directory)
+
+To use:
+ *click a point on the wide view.
+ *this will bring up a zoomed-in view in the "ZoomWindow"
+  the border will be red for first point, and blue for second point
+ *click a point in the zoomed view.  If red, this will establish point1 (presumably, start point)
+   can keep re-clicking to alter the red/start point.
+
+ *left-click in the wide view near a region of interest for 2nd point
+  this will change the zoomed view
+
+ *right-click in the zoomed view; this will change mode to point2 (end point).
+  the zoomed view will now be framed in blue
+
+ *click in the zoomed view to establish the second point;
+   pt2 will show up in blue in both the zoomed view and the wide view
+   the wide view will also show a green line connecting pt1 and pt2
+
+ *iterate as desired until a line of interest is established
+ *right-click in the wide view;
+  this will publish a "Polygon" with 2 points (pt1, pt2) on topic: /polygon_wrt_sys_ref_frame
+
+These metric coordinates should be confirmed vs known values
+
+  To have robot execute path from pt1 to pt2 holding a laser pointing down, run the complementary node:
+
+  rosrun test_moves test_laser_lines
+
+There are currently breakpoints for approach, line, return to camera pose
+
+
+
+
+
+
+
+
+
