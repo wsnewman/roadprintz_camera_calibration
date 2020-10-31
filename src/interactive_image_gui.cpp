@@ -20,6 +20,9 @@
 
 ros::Publisher g_pub_point;
 
+const double X_OFFSET_MANUAL_HACK = 0.040; //laser is shifted this much fore rel to target
+const double Y_OFFSET_MANUAL_HACK = -0.010; //laser is shifted this much to starboard rel to target
+
 //XformUtils xformUtils;
 Eigen::Vector3d g_nom_surface_normal;
 double g_nom_surface_plane_offset=0.0;
@@ -237,9 +240,10 @@ void ImageConverterMouseCB(int event, int x, int y, int flags, void* userdata)
         
         geometry_msgs::Point des_point_wrt_sys_ref_frame;
         //populate this
-        des_point_wrt_sys_ref_frame.x=pt_wrt_sys_ref_frame[0];
-        des_point_wrt_sys_ref_frame.y=pt_wrt_sys_ref_frame[1];
-        des_point_wrt_sys_ref_frame.z=0.0;
+        ROS_WARN("using offsets %f, %f",X_OFFSET_MANUAL_HACK,Y_OFFSET_MANUAL_HACK);
+        des_point_wrt_sys_ref_frame.x=pt_wrt_sys_ref_frame[0]+X_OFFSET_MANUAL_HACK;
+        des_point_wrt_sys_ref_frame.y=pt_wrt_sys_ref_frame[1]+Y_OFFSET_MANUAL_HACK;
+        des_point_wrt_sys_ref_frame.z=0.0;  
         
         
         
