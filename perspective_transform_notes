@@ -1,0 +1,54 @@
+perspective_transform notes:
+
+
+In simu, if want to fake publish an image from disk, navigate to that directory
+(e.g. ~/roadprintz_ws/stella_calib_data/stella_lidar_data)
+ and run:
+
+`rosrun pcl_utils debug_publish_image_from_camera`
+ and respond to prompt with image name (e.g. image1.png)
+ (this may require suppressing the simulated camera that publishes to this same topic)
+
+modified above to publish to: 
+std::string image_topic="/camera_pretransformed/image_rect_color";
+
+
+image on this topic is transformed  to ideal viewpoint and displayed in OPEN_CV window
+also, published this image on topic "/camera/image_rect_color"
+viewable via rqt_image_view
+
+takes about 6 sec to transform (very slow!)
+
+NEXT:
+  do some topic magic to get GUI to use the transformed image;
+  then test angles and lengths with 1m rectangle;  Is this image corrected?
+
+roslaunch roadprintz_launch stella_sim_no_camera.launch
+rosrun roadprintz_camera_calibration perspective_transform
+cd ~/roadprintz_ws/stella_calib_data/stella_lidar_data
+rosrun pcl_utils debug_publish_image_from_camera
+  (reply: image1.png)
+start the HMI
+rosrun ip_cam stella_cam_calib_data_service
+(then reset HMI)
+
+careful...had to:
+rosnode kill /camera/image_proc
+since looks like 2 processes are publishing to /camera/image_rect_color/compressed
+(I think I removed this from stella_sim_no_camera.launch)
+
+perspective transform looks like it may be working...
+BUT, rectangle is coming out too small (about 9.4 squares, not 10 squares).
+Have a scaling problem.  Re-examine kpix??
+
+
+
+
+
+
+
+
+
+
+
+

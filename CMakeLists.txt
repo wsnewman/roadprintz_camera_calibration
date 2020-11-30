@@ -42,6 +42,7 @@ cs_add_library(circle_detector src/circle_detector.cpp)
 #cs_add_executable(draw_polylines src/draw_polylines.cpp)
 cs_add_executable(interactive_image_gui src/interactive_image_gui.cpp)
 cs_add_executable(interactive_image_gui2 src/interactive_image_gui2.cpp)
+cs_add_executable(perspective_transform src/perspective_transform.cpp)
 
 cs_add_executable(ipcam src/ipcam.cpp)
 cs_add_executable(ipcam_svc src/ipcam_svc.cpp)
@@ -55,6 +56,7 @@ cs_add_executable(find_poster src/find_poster.cpp)
 cs_add_executable(find_poster_from_lidar src/find_poster_from_lidar.cpp)
 cs_add_executable(find_extrinsics src/find_extrinsics.cpp)
 
+
 #cs_add_executable(wsn_ceres_helloworld src/wsn_ceres_helloworld.cpp)
 
 #cs_add_executable(harris_corners src/harris_corners.cpp)
@@ -66,6 +68,7 @@ cs_add_executable(find_extrinsics src/find_extrinsics.cpp)
 #target_link_libraries( draw_polylines ${OpenCV_LIBS})
 target_link_libraries( interactive_image_gui ${OpenCV_LIBS})
 target_link_libraries( interactive_image_gui2 ${OpenCV_LIBS})
+target_link_libraries( perspective_transform ${OpenCV_LIBS})
 
 target_link_libraries( ipcam ${OpenCV_LIBS})
 target_link_libraries( ipcam_svc ${OpenCV_LIBS})
