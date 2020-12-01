@@ -41,6 +41,21 @@ perspective transform looks like it may be working...
 BUT, rectangle is coming out too small (about 9.4 squares, not 10 squares).
 Have a scaling problem.  Re-examine kpix??
 
+trying transformed_image1.png
+1745,761
+968,824  for corners 13 squares apart
+--59.96 pixels per square
+i.e. 600 pixels/meter
+(expected 590)
+
+changed virtual camera vertical height; this made NO difference
+changed cam_calib_data_service to KPIX=604, and rectangle fits pretty well on checkerboard dimensions
+  BUT, KPIX was set to 590 in perspective transform
+STILL DO NOT UNDERSTAND THE DISCREPANCY
+error in camera transform??
+
+
+
 
 
 
