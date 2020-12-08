@@ -84,13 +84,19 @@ Eigen::Affine3d get_hardcoded_affine_cam_wrt_sys(void) {
     //           0, 0, -1;   
 
      //   trans<<  2.76796, 0.00720234,    2.88546; //4.5426 rms pixel error in reprojection based on ~1,000 points
-        trans<<  2.76911, 0.00777921,    2.88495; //4.44
+     //   trans<<  2.76911, 0.00777921,    2.88495; //4.44
+        trans<<2.7955,  0.0109847,    2.8659 ; //4.328155, new 12/3/20 after LIDAR calibration and improved base w/rt sys transform
     //note: camera origin is about 2.885 meters high, and about 2.768m aft of rear wheels
     //   camera origin is nearly along vehicle centerline, but shifted about 7mm to starboard
 
-     R <<     0.0525021,  0.995724,   0.0759998,
-              0.9976,    -0.055738,   0.0410976,
-              0.0451579,  0.0736596, -0.996261;
+    // R <<     0.0525021,  0.995724,   0.0759998,
+    //          0.9976,    -0.055738,   0.0410976,
+    //          0.0451579,  0.0736596, -0.996261;
+     //12/3/20:
+     R<<  0.0483989,   0.996187,  0.0725811,
+  0.997816, -0.0514923,    0.04137,
+ 0.0449498,  0.0704207,  -0.996505;
+     
     //note: camera x-axis is ~parallel to system y-axis
     //      camera y-axis is ~parallel to system x-axis
     //      camera z-axis is ~antiparallel to system z-axis
@@ -309,9 +315,9 @@ public:
     
       return;
     }
-    ROS_INFO("transforming image...");
+    //ROS_INFO("transforming image...");
     transform_image(g_src,g_virtual_image);
-    cout<<"done transforming image"<<endl;
+    //cout<<"done transforming image"<<endl;
     resize(g_virtual_image, dst_smaller, Size(g_virtual_image.cols/RESCALE_FACTOR,g_virtual_image.rows/RESCALE_FACTOR));
     imshow(OPENCV_WINDOW, dst_smaller);  
 

@@ -17,10 +17,13 @@ using namespace std;
 typedef vector <double> record_t;
 typedef vector <record_t> data_t;
 XformUtils xformUtils;
+
+//MAGIC NUMBERS:
     //intrinsics:
+
      double   fx = 1637.367343; 
      double   fy = 1638.139550;   
-     double f = 1638.0; // can't tell which is which
+     //double f = 1638.0; // can't tell which is which
      //I get a better fit swapping cx and cy:
      double ci = 774.029343;  //hmm...I hope these are the right order!
      double cj = 1313.144667; //try swapping?  OR...swap input values of image coords
@@ -181,13 +184,44 @@ Eigen::Affine3d get_hardcoded_affine_cam_wrt_sys(void) {
     //           0, 0, -1;   
 
      //   trans<<  2.76796, 0.00720234,    2.88546; //4.5426 rms pixel error in reprojection based on ~1,000 points
-        trans<<  2.76911, 0.00777921,    2.88495; //4.44
+        
+      //  trans<<  2.76911, 0.00777921,    2.88495; //4.44
+      //  trans<<  2.76797, 0.00830871,    2.88722;
+      //  trans<<  2.76683, 0.00883616,    2.88949;//7.047 rms err
+      //  trans<< 2.76569, 0.00936156,    2.89176; //6.314
+      //  trans<< 2.76455, 0.00868492,    2.89402; //5.851
+      //  trans<<2.76341, 0.00690042,    2.89628; //5.485
+      //  trans<<2.76227, 0.00511434,    2.89854;//5.168
+       // trans<<2.76287, 0.00332767,    2.89794; //4.892
+       // trans<<2.76405, 0.00154181,    2.89699; //4.619384
+       // trans<<  2.76523, -0.000596052,      2.89584; //4.346809
+       // trans<< 2.76641, -0.00238018,     2.89469; //4.076635
+       // trans<<2.76817, -0.00451633,     2.89298; //3.807012
+       // trans<<2.76935, -0.00625178,     2.89182; //3.539035
+       // trans<< 2.77053, -0.00818654,     2.89066; //3.272630
+       // trans<<2.77171, -0.0101206,     2.8895; //3.008528
+       // trans<<2.77289, -0.0118083,    2.88834; //2.745506
+        //above is for image1 ONLY
+       //try w/ inputs 1,2,5,6,8, 11, 13 
+       //trans<< 2.78842, 0.00345516,    2.87124;  //5.53223
+       //trans<<2.79042, 0.0128573,   2.86821;  //4.775859
+       //trans<< 2.78981, 0.0128573,   2.86806  ;//4.502246
+       // trans<<2.7912, 0.0127102,   2.86666  ;//4.358967
+       // trans<<2.79391, 0.0107049,   2.86611 ; //4.333166
+       // trans<<2.79507, 0.0104049,   2.86587 ; //4.328827
+                        trans<<2.7955,  0.0109847,    2.8659 ;//4.328155
+        //compare to previous: 2.76911, 0.00777921,   2.88495;
+        
     //note: camera origin is about 2.885 meters high, and about 2.768m aft of rear wheels
     //   camera origin is nearly along vehicle centerline, but shifted about 7mm to starboard
 
-     R <<     0.0525021,  0.995724,   0.0759998,
-              0.9976,    -0.055738,   0.0410976,
-              0.0451579,  0.0736596, -0.996261;
+    // R <<     0.0525021,  0.995724,   0.0759998,
+    //          0.9976,    -0.055738,   0.0410976,
+    //          0.0451579,  0.0736596, -0.996261;
+   
+     R<<  0.0483989,   0.996187,  0.0725811,
+  0.997816, -0.0514923,    0.04137,
+ 0.0449498,  0.0704207,  -0.996505;
     //note: camera x-axis is ~parallel to system y-axis
     //      camera y-axis is ~parallel to system x-axis
     //      camera z-axis is ~antiparallel to system z-axis
@@ -337,10 +371,13 @@ int main(int argc, char** argv) {
     fname = "lidar_pts1_metric.csv";
     if(!read_object_pts(fname,objectPoints)) return 1;   
     
+    
     fname = "image2_corners.csv";
     if(!read_image_pts(fname,imagePoints)) return 1;
     fname = "lidar_pts2_metric.csv";
     if(!read_object_pts(fname,objectPoints)) return 1;  
+    
+      
 
     fname = "image5_corners.csv";
     if(!read_image_pts(fname,imagePoints)) return 1;
@@ -352,12 +389,12 @@ int main(int argc, char** argv) {
     fname = "lidar_pts6_metric.csv";
     if(!read_object_pts(fname,objectPoints)) return 1;     
 
+ 
     fname = "image8_corners.csv";
     if(!read_image_pts(fname,imagePoints)) return 1;
     fname = "lidar_pts8_metric.csv";
-    if(!read_object_pts(fname,objectPoints)) return 1;    
-
-    /**/
+    if(!read_object_pts(fname,objectPoints)) return 1; 
+    
     fname = "image11_corners.csv";
     if(!read_image_pts(fname,imagePoints)) return 1;
     fname = "lidar_pts11_metric.csv";
@@ -367,7 +404,7 @@ int main(int argc, char** argv) {
     if(!read_image_pts(fname,imagePoints)) return 1;
     fname = "lidar_pts13_metric.csv";
     if(!read_object_pts(fname,objectPoints)) return 1;   
-
+  /* */
     
 
      
@@ -450,7 +487,7 @@ int main(int argc, char** argv) {
          double rms_err;
      //affine_cam_wrt_sys..translation()=affine_cam_wrt_sys..translation()+dtrans;
         //choose search for about 2min, i.e. test center and +/- three samples either side
-         double dsearch = 0.0002;
+         double dsearch = 0.00015;
          
          for (dx=-3*dsearch;dx<3*dsearch;dx+=dsearch) {
              for (dy=-3*dsearch;dy<3*dsearch;dy+=dsearch) {

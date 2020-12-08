@@ -1,4 +1,10 @@
-//interactive_image_gui2.cpp
+//interactive_image_gui3.cpp
+//uses ideal camera, as transformed by perspective transform
+// really should publish transform...
+//instead, using: 
+//Eigen::Affine3d get_hardcoded_affine_virtual_cam_wrt_sys(void) {
+// make sure this matche values in perspective_transform node
+
 //displays topic /camera/image_rect_color
 //can click mouse to get u,v coords
 // will convert these to x,y w/rt sys_ref_frame
@@ -43,17 +49,20 @@
 #include <Eigen/Geometry>
 //#include <xform_utils/xform_utils.h>
 
-ros::Publisher g_pub_line;
+//ros::Publisher g_pub_line;
+ros::Publisher g_pub_point;
+
+
 const double RESCALE_FACTOR=2.0; //scale original image down by this factor to fit display size
-const double ZOOM_FACTOR = 2.0; //scale up by this factor from original image to display zoom window
+const double ZOOM_FACTOR = 1.0; //scale up by this factor from original image to display zoom window
 const double ROI_HEIGHT = 200.0; //choose size of ROI w/rt original image
 const double ROI_WIDTH = 300.0;
 double BOX_WIDTH = ROI_WIDTH/RESCALE_FACTOR;
 double BOX_HEIGHT = ROI_HEIGHT/RESCALE_FACTOR;
 
 //THESE magic numbers should get installed in robot_base to system_ref_frame transform
-double HACK_SYS_REF_FRAME_X_OFFSET = 0.040;
-double HACK_SYS_REF_FRAME_Y_OFFSET = -0.010;
+double HACK_SYS_REF_FRAME_X_OFFSET = 0.0; //0.040;
+double HACK_SYS_REF_FRAME_Y_OFFSET = 0.0; //-0.010;
 
 //XformUtils xformUtils;
 Eigen::Vector3d g_nom_surface_normal;
@@ -65,6 +74,10 @@ double g_fx = 1637.367343;
 double g_fy = 1638.139550;   
 double g_cx = 1313.144667;
 double g_cy = 774.029343;
+
+const double VERT_CAM_HEIGHT=3.0; //this actually makes NO difference; but need some value here 
+
+
 
 //also, currently using Eigen::Affine3d get_hardcoded_affine_cam_wrt_sys(void)
 // need to make this more flexible; intend to implement via tf
@@ -106,9 +119,14 @@ double g_v_zoomed_pt1=0; //=g_zoom_y_ctr;
 double g_u_zoomed_pt2=0; //g_u_zoomed_pt1;
 double g_v_zoomed_pt2=0; //g_v_zoomed_pt1;
 
+geometry_msgs::Point g_des_point_wrt_sys_ref_frame;
+
+
 Rect2d g_r_zoom_window;
 
-Eigen::Affine3d get_hardcoded_affine_cam_wrt_sys(void) {
+//define an ideal transform for the virtual camera;
+//may choose origin to be close to physical camera origin, so field of view is comparable
+Eigen::Affine3d get_hardcoded_affine_virtual_cam_wrt_sys(void) {
 	Eigen::Affine3d hardcoded_affine_cam_wrt_sys;
 
 	Eigen::Vector3d trans;
@@ -121,13 +139,14 @@ Eigen::Affine3d get_hardcoded_affine_cam_wrt_sys(void) {
     //           0, 0, -1;   
 
      //   trans<<  2.76796, 0.00720234,    2.88546; //4.5426 rms pixel error in reprojection based on ~1,000 points
-        trans<<  2.76911, 0.00777921,    2.88495; //4.44
+        trans<<  2.77, 0.0,    VERT_CAM_HEIGHT; //
     //note: camera origin is about 2.885 meters high, and about 2.768m aft of rear wheels
     //   camera origin is nearly along vehicle centerline, but shifted about 7mm to starboard
 
-     R <<     0.0525021,  0.995724,   0.0759998,
-              0.9976,    -0.055738,   0.0410976,
-              0.0451579,  0.0736596, -0.996261;
+     //ideal orientation: normal to ideal plane
+     R <<     0,    1,   0,
+              1,    0,   0,
+              0,    0,  -1;
     //note: camera x-axis is ~parallel to system y-axis
     //      camera y-axis is ~parallel to system x-axis
     //      camera z-axis is ~antiparallel to system z-axis
@@ -137,7 +156,6 @@ Eigen::Affine3d get_hardcoded_affine_cam_wrt_sys(void) {
 	hardcoded_affine_cam_wrt_sys.translation() = trans;
 
 	return hardcoded_affine_cam_wrt_sys;
-
 }
 
 //inverse fnc, from (u,v) pixel values to (x,y,z) in camera frame is ambiguous, since cannot know the distance
@@ -150,6 +168,9 @@ void pixel_to_pt_wrt_cam_frame(double u, double v, Eigen::Vector3d &pt_wrt_cam) 
 }
 
 //more sophisticated fnc to convert pixel values to 3-D coords w/rt sys_ref_frame:
+//BUT, still assumes ideal plane (containing system_ref_frame)
+//with virtual camera, this could be simplified...just use KPIX
+//
 void convert_pixel_to_meters(double u_val,double v_val,Eigen::Vector3d surface_plane_normal,double surface_plane_offset,
         Eigen::Vector3d &pt_wrt_sys_ref_frame) {
     //ROS_INFO("input pixel values (u,v) =  (%f, %f), angle %f",u_val,v_val,theta_sym_wrt_sys);
@@ -178,6 +199,20 @@ void convert_pixel_to_meters(double u_val,double v_val,Eigen::Vector3d surface_p
 }
 
 
+//try doing cropping manually; seems like openCV cropping may be shifting pixels
+void    copy_ROI(Mat src,Mat &dst,Rect2d zoom_window) {
+    int x_left = zoom_window.x;
+    int y_top = zoom_window.y;
+    int width = zoom_window.width;
+    int height = zoom_window.height;
+    for (int i=0;i<width;i++) {
+        for (int j=0;j<height;j++) {
+            //dst.at<Vec3b>(v_virt, u_virt) = src.at<Vec3b>(v_cam,u_cam);
+            dst.at<Vec3b>(j, i) = src.at<Vec3b>(j+y_top,i+x_left);
+        }
+    }
+}
+
 
 
   
@@ -190,7 +225,7 @@ void ImageConverterMouseCB(int event, int x, int y, int flags, void* userdata)
     {
         g_x_ctr = x;
         g_y_ctr = y;
-        
+        ROS_INFO("zoom=1 selection: x,y = %d, %d",x,y);
         //require that zoom will fit box:
         //Point2f upper_left((g_x_ctr-box_width/2),(g_y_ctr-box_height/2));
         //Point2f lower_right((g_x_ctr+box_width/2),(g_y_ctr+box_height/2));
@@ -232,7 +267,7 @@ void ImageConverterMouseCB(int event, int x, int y, int flags, void* userdata)
             g_y_zoom_top = g_src.rows-ROI_HEIGHT-1;
         }
         g_r_zoom_window.y = g_y_zoom_top;        
-        
+        ROS_INFO("upper-left of ROI: %f, %f",g_x_zoom_left,g_y_zoom_top);
 
         
         
@@ -243,18 +278,19 @@ void ImageConverterMouseCB(int event, int x, int y, int flags, void* userdata)
     }
         //toggle the current point
         //is_first_point =!is_first_point;
+    /*
     if  ( event == EVENT_RBUTTONDOWN )
     {
         ROS_INFO("publishing polygon: "); 
         ROS_INFO("start pt = %f, %f",g_endpoints.points[0].x,g_endpoints.points[0].y);
         ROS_INFO("end pt = %f, %f",g_endpoints.points[1].x,g_endpoints.points[1].y);
-        g_pub_line.publish(g_endpoints); 
-    }
+        //g_pub_line.publish(g_endpoints); 
+    }*/
 }
 
 void ImageConverterZoomedMouseCB(int event, int x, int y, int flags, void* userdata)
 {
-
+   //geometry_msgs::Point des_point_wrt_sys_ref_frame;
     if  ( event == EVENT_LBUTTONDOWN )
     {
         cout << "Left button of the mouse is clicked - position (" << x << ", " << y << ")" << endl;
@@ -270,8 +306,8 @@ void ImageConverterZoomedMouseCB(int event, int x, int y, int flags, void* userd
         convert_pixel_to_meters( u_val, v_val, g_nom_surface_normal,g_nom_surface_plane_offset,pt_wrt_sys_ref_frame);
         
         //g_u_zoomed_pt1
-        if (is_first_point) {
-            cout<<"setting starting point: ";
+        //if (is_first_point) {
+            cout<<"setting point: ";
             g_u_zoomed_pt1 = x; //u_val;
             g_v_zoomed_pt1 = y; //v_val;
             start_pt.x = (float) pt_wrt_sys_ref_frame[0];
@@ -281,8 +317,8 @@ void ImageConverterZoomedMouseCB(int event, int x, int y, int flags, void* userd
             g_u_pt1 =  u_val/RESCALE_FACTOR; //(ZOOM_FACTOR*RESCALE_FACTOR);
             g_v_pt1 =  v_val/RESCALE_FACTOR; //(ZOOM_FACTOR*RESCALE_FACTOR);
             
-        }
-
+        //}
+        /*
         else
         {
             cout<<"setting end point"<<endl;
@@ -294,20 +330,25 @@ void ImageConverterZoomedMouseCB(int event, int x, int y, int flags, void* userd
             g_u_pt2 =  u_val/RESCALE_FACTOR;
             g_v_pt2 =  v_val/RESCALE_FACTOR;            
         }
-        /*
-        geometry_msgs::Point des_point_wrt_sys_ref_frame;
-        //populate this
-        des_point_wrt_sys_ref_frame.x=pt_wrt_sys_ref_frame[0];
-        des_point_wrt_sys_ref_frame.y=pt_wrt_sys_ref_frame[1];
-        des_point_wrt_sys_ref_frame.z=0.0;
+        */
         
+        //populate this
+        g_des_point_wrt_sys_ref_frame.x=pt_wrt_sys_ref_frame[0];
+        g_des_point_wrt_sys_ref_frame.y=pt_wrt_sys_ref_frame[1];
+        g_des_point_wrt_sys_ref_frame.z=0.0;
+        ROS_INFO("selected point x,y = %f, %f",g_des_point_wrt_sys_ref_frame.x,g_des_point_wrt_sys_ref_frame.y);
+        ROS_INFO("right-click to send this point");
       
         //publish this:
-        g_pub_line.publish(des_point_wrt_sys_ref_frame); */
+        //g_pub_line.publish(des_point_wrt_sys_ref_frame); 
+        //g_pub_point.publish(des_point_wrt_sys_ref_frame); 
     }
     if  ( event == EVENT_RBUTTONDOWN )
     {
-       
+        g_pub_point.publish(g_des_point_wrt_sys_ref_frame); 
+        ROS_INFO("publishing point x,y = %f, %f",g_des_point_wrt_sys_ref_frame.x,g_des_point_wrt_sys_ref_frame.y);
+        
+       /*
         if (is_first_point) {
             cout<<"changing to end point entry"<<endl;
         }
@@ -315,8 +356,9 @@ void ImageConverterZoomedMouseCB(int event, int x, int y, int flags, void* userd
               cout<<"changing to start point entry"<<endl;
         }        
         is_first_point = !is_first_point; 
+         */
     }
- 
+
 }
 
 
@@ -428,7 +470,10 @@ public:
 
    // Crop image   
     g_imCrop = g_src(g_r_zoom_window);
-    resize(g_imCrop, g_imCrop, Size(ROI_WIDTH*ZOOM_FACTOR,ROI_HEIGHT*ZOOM_FACTOR));
+    
+    //do my own cropping to see if any difference
+    copy_ROI(g_src,g_imCrop,g_r_zoom_window);
+    //resize(g_imCrop, g_imCrop, Size(ROI_WIDTH*ZOOM_FACTOR,ROI_HEIGHT*ZOOM_FACTOR));
     cv::circle(g_imCrop, cv::Point(g_zoom_x_ctr, g_zoom_y_ctr), 20, green,2);
     if (is_first_point) {
        cv::rectangle(g_imCrop, cv::Point(0,0), cv::Point(ZOOM_FACTOR*ROI_WIDTH,ZOOM_FACTOR*ROI_HEIGHT), red,2);
@@ -463,12 +508,19 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "interactive_image_gui");
   ImageConverter ic;
   ros::NodeHandle nh;
-  ros::Publisher pub_line =
-    nh.advertise<geometry_msgs::Polygon>("polygon_wrt_sys_ref_frame", 1, true);
+  
+  ros::Publisher pub_point =
+    nh.advertise<geometry_msgs::Point>("point_wrt_sys_ref_frame", 1, true);
 
     // make this publisher available to callback
-    g_pub_line = pub_line;
-  g_affine_cam_wrt_sys = get_hardcoded_affine_cam_wrt_sys();
+    g_pub_point = pub_point;  
+  
+  //ros::Publisher pub_line =
+  //  nh.advertise<geometry_msgs::Polygon>("polygon_wrt_sys_ref_frame", 1, true);
+
+    // make this publisher available to callback
+  //  g_pub_line = pub_line;
+  g_affine_cam_wrt_sys = get_hardcoded_affine_virtual_cam_wrt_sys();
   g_nom_surface_normal<<0,0,1; //default ideal plane
   //paintfile.open("interactive_paintfile.cpf",ios::out|ios::trunc);
   //vertices.clear();
