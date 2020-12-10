@@ -69,12 +69,20 @@ Eigen::Vector3d g_nom_surface_normal;
 double g_nom_surface_plane_offset=0.0;
 
 //MAGIC NUMBERS:
-    //intrinsics:
+    //intrinsics (of original camera);
 double g_fx = 1637.367343; 
 double g_fy = 1638.139550;   
 double g_cx = 1313.144667;
 double g_cy = 774.029343;
+//don't use the above; use instead values for virtual (ideal) camera:
 
+//virtual image values (after perspective transform)
+const int g_image_width = 2688;
+const int g_image_height = 1520; 
+const double KPIX = 590.0; //pixels per meter for virtual image; MUST MAKE THIS SAME AS IN PERSPECTIVE_TRANSFORM NODE
+//ISSUE: in image, I am seeing more like 592 to 593 pixels/meter
+double cx_virt = g_image_width/2.0;
+double cy_virt = g_image_height/2.0;
 const double VERT_CAM_HEIGHT=3.0; //this actually makes NO difference; but need some value here 
 
 
@@ -126,6 +134,8 @@ Rect2d g_r_zoom_window;
 
 //define an ideal transform for the virtual camera;
 //may choose origin to be close to physical camera origin, so field of view is comparable
+// really, though, KPIX is all that matters...this will create an equivalent focal length for
+// KPIX, VERT_CAM_HEIGHT, fx, fy
 Eigen::Affine3d get_hardcoded_affine_virtual_cam_wrt_sys(void) {
 	Eigen::Affine3d hardcoded_affine_cam_wrt_sys;
 
@@ -161,16 +171,19 @@ Eigen::Affine3d get_hardcoded_affine_virtual_cam_wrt_sys(void) {
 //inverse fnc, from (u,v) pixel values to (x,y,z) in camera frame is ambiguous, since cannot know the distance
 //return a point that has unit z value, and x and y scaled appropriate to this value
 //defer discovering of z-height
+//HOWEVER, can return the equivalent point on the ideal plane.
+// this 3-D point is equivalent to a vector from camera origin to pt on ideal plane
+// later, use this to compute intersection of this vector w/ a tilted, offset plane
 void pixel_to_pt_wrt_cam_frame(double u, double v, Eigen::Vector3d &pt_wrt_cam) {
-    pt_wrt_cam[2] = 1.0; //definitional for this function
-    pt_wrt_cam[0] = (u-g_cx)/g_fx;
-    pt_wrt_cam[1] = (v-g_cy)/g_fy;    
+    pt_wrt_cam[2] = VERT_CAM_HEIGHT; //definitional for this function
+    pt_wrt_cam[0] = (u-cx_virt)/KPIX;
+    pt_wrt_cam[1] = (v-cy_virt)/KPIX;    
 }
 
 //more sophisticated fnc to convert pixel values to 3-D coords w/rt sys_ref_frame:
 //BUT, still assumes ideal plane (containing system_ref_frame)
 //with virtual camera, this could be simplified...just use KPIX
-//
+//arguments prep for considering other planes than ideal plane, but code needs to be augmented
 void convert_pixel_to_meters(double u_val,double v_val,Eigen::Vector3d surface_plane_normal,double surface_plane_offset,
         Eigen::Vector3d &pt_wrt_sys_ref_frame) {
     //ROS_INFO("input pixel values (u,v) =  (%f, %f), angle %f",u_val,v_val,theta_sym_wrt_sys);
@@ -179,6 +192,8 @@ void convert_pixel_to_meters(double u_val,double v_val,Eigen::Vector3d surface_p
     //g_affine_cam_wrt_sys
     pixel_to_pt_wrt_cam_frame(u_val, v_val, vec_wrt_camera_frame);
     //ROS_INFO("vec_wrt_camera_frame = %f, %f, %f",vec_wrt_camera_frame[0],vec_wrt_camera_frame[1],vec_wrt_camera_frame[2]);
+    //vec_wrt_camera_frame for ideal plane is same as pt_wrt_virtual_cam, on ideal plane
+    // need more work if target plane is not ideal plane
 
     //convert this to sys_ref_frame:
     vec_wrt_sys_ref_frame = g_affine_cam_wrt_sys.linear()*vec_wrt_camera_frame;
@@ -190,7 +205,9 @@ void convert_pixel_to_meters(double u_val,double v_val,Eigen::Vector3d surface_p
     //rescale pt s.t. the height in sys_ref_frame = 0
     O_cam_wrt_sys_ref_frame = g_affine_cam_wrt_sys.translation();
     //ROS_INFO("O_cam_wrt_sys_ref_frame = %f, %f, %f",O_cam_wrt_sys_ref_frame[0],O_cam_wrt_sys_ref_frame[1],O_cam_wrt_sys_ref_frame[2]);
-    double v_length = -O_cam_wrt_sys_ref_frame[2]/vec_wrt_sys_ref_frame[2];
+    double v_length = -O_cam_wrt_sys_ref_frame[2]/vec_wrt_sys_ref_frame[2]; //for ideal plane, this should just be unity
+    // simpler: pt_wrt_sys_ref_frame = T_cam/sys * pt_wrt_cam
+   
     pt_wrt_sys_ref_frame = O_cam_wrt_sys_ref_frame + v_length*vec_wrt_sys_ref_frame;
     
     pt_wrt_sys_ref_frame[0] = pt_wrt_sys_ref_frame[0] + HACK_SYS_REF_FRAME_X_OFFSET;
