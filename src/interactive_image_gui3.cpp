@@ -62,7 +62,7 @@ double BOX_HEIGHT = ROI_HEIGHT/RESCALE_FACTOR;
 
 //THESE magic numbers should get installed in robot_base to system_ref_frame transform
 double HACK_SYS_REF_FRAME_X_OFFSET = 0.035; //0.040;
-double HACK_SYS_REF_FRAME_Y_OFFSET = -0.015; //-0.010;
+double HACK_SYS_REF_FRAME_Y_OFFSET = -0.015; //-0.010; 
 
 //XformUtils xformUtils;
 Eigen::Vector3d g_nom_surface_normal;
