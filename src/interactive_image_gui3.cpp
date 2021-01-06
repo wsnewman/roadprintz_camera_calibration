@@ -53,7 +53,7 @@
 ros::Publisher g_pub_point;
 
 
-const double RESCALE_FACTOR=2.0; //scale original image down by this factor to fit display size
+const double RESCALE_FACTOR=4.0; //scale original image down by this factor to fit display size
 const double ZOOM_FACTOR = 1.0; //scale up by this factor from original image to display zoom window
 const double ROI_HEIGHT = 200.0; //choose size of ROI w/rt original image
 const double ROI_WIDTH = 300.0;
@@ -61,8 +61,8 @@ double BOX_WIDTH = ROI_WIDTH/RESCALE_FACTOR;
 double BOX_HEIGHT = ROI_HEIGHT/RESCALE_FACTOR;
 
 //THESE magic numbers should get installed in robot_base to system_ref_frame transform
-double HACK_SYS_REF_FRAME_X_OFFSET = 0.0; //0.040;
-double HACK_SYS_REF_FRAME_Y_OFFSET = 0.0; //-0.010;
+double HACK_SYS_REF_FRAME_X_OFFSET = 0.035; //0.040;
+double HACK_SYS_REF_FRAME_Y_OFFSET = -0.015; //-0.010; 
 
 //XformUtils xformUtils;
 Eigen::Vector3d g_nom_surface_normal;
