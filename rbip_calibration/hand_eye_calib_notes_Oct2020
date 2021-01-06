@@ -1,0 +1,24 @@
+using extrinsics:
+
+1) means to get pixel data from image (use GUI?)
+   need accurate conversion to rectified-image pixels
+
+2) need plane fit: normal and offset
+   need to construct a planar coord frame
+
+3) use intrinsics to compute a ray from camera focal point through pixel (i,j)
+
+3.5) convert ray to sys_ref_frame (need extrinsics here; extract camera-to-forearm from camera-to-sys_ref_frame)
+
+4) find intersection of above ray w/ identified plane
+
+5) convert this point to sys_ref_frame coords
+
+6) send robot to this point (w/ laser)
+
+7) test w/ checkerboard; get offset errors  (put grid on top of checkerboard?)
+
+-----dev----
+start w/ getting transform, T_cam/forearm (both DH frame and tf frame)
+
+

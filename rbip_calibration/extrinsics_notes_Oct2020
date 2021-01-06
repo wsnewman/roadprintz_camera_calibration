@@ -1,0 +1,60 @@
+interpretation of image values:
+start w/ image1
+
+corner values, metric, for lidar:
+as saved, these raster roughly along lines parallel to
+  the sys_ref_frame y-axis
+points are listed in increasing values of y,
+advance to next line is increasing value of x
+(in sys_ref_frame)
+
+i.e., raster like NTSC from upper-left corner (in image)
+
+BUT, there could be issues with translation to/from
+ pcd/image
+
+laser_pcd1.png appears w/ same orientation as camera image
+
+processed_laser_pcd1.png is created by running:
+rosrun roadprintz_camera_calibration find_poster
+  and responding with filename: laser_pcd1
+
+The raster scan of poster corners is identical to that of processed_image1.png
+(scans horizontally starting from upper-left of image).
+
+EXPECT:  image j values increase along horizontal lines, and i-values increase
+for each new line;
+
+BUT, in laser_pcd1_corners, I see i-values increasing with horizontal sweep!
+(and j increases for each line)
+
+first col of image1_corners.csv has values that go up to ~1600
+
+
+metric values:
+y-values increase along horizontal scans,
+and x-values increase for each for successive scans
+
+WHY ARE CORNER VALUES SWAPPED??
+
+---running extrinsics brute force;
+dx = -0.09, dy = 0.01  at 2:15
+dx = -0.08, dy = -0.06 at 2:23  (8 min for advance dx by 0.005)
+
+more coarse search: rms err 39.46 w/ 
+[ INFO] [1603823215.546732619]: affine best: 
+[ INFO] [1603823215.546893613]: origin:      3.0175 -0.00943772     2.89324
+
+[ INFO] [1603823215.547013088]: 
+6.24609e-05    -1.00125 -0.00124974
+          1           0   0.0499792
+  0.0499792  0.00124974          -1
+[ INFO] [1603823215.547037101]: rms error: 39.466988
+
+
+
+
+
+
+
+

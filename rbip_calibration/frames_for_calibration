@@ -1,0 +1,176 @@
+DEFINITIONS AND CALIBRATION OF KEY FRAMES:
+
+LIDAR calibration:
+ need to establish LIDAR radial offset;
+ lower robot, forearm ~ horizontal, LIDAR plane pointing nominally down
+ place reference plane (e.g. board) under lidar;
+ adjust board or arm until square shows reference surface is perpendicular to LIDAR mount
+ measure the height of the LIDAR mount relative to the reference surface
+ add mounting offset from mount reference to center of LIDAR frame
+ obtain a LIDAR sweep and analyze result;  
+ find static offset of LIDAR pings by comparing scan interpretation to physical measurement
+ edit config file for loading this parameter upon launch; 
+ (associate this offset w/ serial number of LIDAR)
+
+TODO:
+  make a program to help automate this process (interpret LIDAR, prompt for offset measurement, output static correction)
+
+
+RBIP:  define a robot-base-ideal-plane, RBIP, frame: 
+The origin is on the ideal plane, directly below the robot base-frame origin (projected down normal to the ideal plane). 
+The robot-base (RB) frame is related to the RBIP frame as: T_RB/RBIF
+By construction, dx=0,dy=0, dthetaz = 0 in this transform.
+The height of the robot base, dz, must be established by a LIDAR scan.
+
+***IDENTIFY T_RB/RBIP
+Position the vehicle on an ideal (flat) surface and perform LIDAR scan.
+Fit a plane to points from the LIDAR scan to establish the 3 unknown params in  T_RB/RBIP.
+These are: height of the robot-base-frame origin above the ideal plane and tilt angles about x and y
+This establishes a fully-identified T_RB/RBIP
+
+** TODO: make program to analyze LIDAR sweep and create transform publisher;
+  output this by writing to a launch file w/ identified parameters
+
+TEST/VALIDATE:
+*publish T_RB/RBIP for use w/ IK in the RBIP frame (i.e., roslaunch the above file)
+*do IK w/rt RBIP
+*confirm height of robot flange above ideal surface over full reach of robot
+  e.g., use a "soft" block of known thickness and steer robot to touch block at various poses
+  record resulting z-height of flange; should observe flange surface is parallel to floor
+
+** TODO: make program that does IK w/rt RBIP; do careful Cartesian wrist moves
+  make a scale/spring that indicates a given displacement from floor?  Integrate w/ laser mount??
+  get electronic distance sensor? do sweeps with this sensor and reconcile w/ LIDAR?
+
+** TODO: use Sharp sensor/Phidgets ADC and long cable for analog sensing of flange distance;
+  modify laser holder to accommodate Sharp sensor
+  write program to move robot over surface at nom const height and log Sharp-sensor values to validate laser-scan result
+  (not necessary???)
+
+
+
+
+***IDENTIFY EXTRINSIC PARAMS OF PHYSICAL CAMERA W/RT RBIP:
+
+PC: the physical-camera frame is the optical frame of the (rectified) arm-mounted camera IN THE CAMERA POSE.
+
+Use a flange-mounted laser and arm-mounted camera and pre-identified T_RB/RBIP to calibrate the extrinsic transform
+of the physical camera with respect to the robot-base-ideal-plane transform: T_PC/RBIP.
+
+process:
+*USE IK to have laser point at specified pose, e.g. along RBIP x-axis
+*align a key point of checkerboard poster w/ this pose
+*move robot to a second point, e.g. also along x axis of RBIP
+*iterate moving poster and robot to get two correspondences that illuminate key points along RBIP x-axis
+   (this may be unnecessary, but perhaps convenient to establish a coord frame aligned w/ RBIP using poster)
+*take snapshot and LIDAR scan(s) of this poster pose.
+
+
+
+
+
+
+NEXT, calibrate the physical camera extrinsic transform, T_PC/RBIP.
+
+
+
+
+
+
+
+
+Thus, the origin of
+the robot-base frame w/rt the RBIP frame is (0;0;Z_ROBOT_BASE).
+
+
+
+
+
+
+Choose the RBIP frame to be aligned with the VCIP frame, s.t. R_VCIP/RBIP = I (the identity)
+
+
+
+
+
+define a virtual camera
+its z axis is antiparallel to the ideal plane
+It has a corresponding virtual-camera-ideal-plane (VCIP) frame, with origin at the intersection of the ideal plane and
+the virtual-camera z-axis.  
+
+Set this VCIP frame to be at a  pose w/rt the estimated system-ref frame (ESR frame).
+This allows for a correction transform for ESR w/rt the calibrated system_ref_frame.
+
+The VCIP frame is related to the ESR frame with R_VCIP/ESR = Identity, and
+O_VCIP/ESR = (X_OFFSET;0;0), where X_OFFSET is TBD (about 2m?).  Choose this to be some convenient offset
+so the center of the virtual camera FOV is roughly centered on robot reachability.
+
+
+
+including Z_ROBOT_BASE, there are 4 parameters to be determined for T_base_frame/RBIP
+
+There is 1 parameter (X_OFFSET_VCIP_WRT_RBIP) to be determined for T_VCIP/RBIP
+There is 1 parameter to be estimated (X_OFFSET_VCIP_WRT_ESR) for T_VCIP/ESR
+There are 3 parameters to be determined for T_ESR/SRF: dx, dy, dthetaz of ESR wrt SRF.
+  By construction, these should be perturbations, but must be identified
+
+Extrinsic calibration of the physical camera--> physical camera frame (PC) w/rt RBIP
+ T_PC/RBIP; use robot with laser to find this calibration
+
+Will be able to compute robot base frame w/rt system_ref_frame from the above:
+
+Frames summary:
+SR: system_ref_frame; used for odometry (needs localization to find)
+ESR: estimated system-ref frame; initial estimate of system_ref_frame, to be corrected w/ dx, dy, dthetaz
+PC: optical frame of the (rectified) physical camera
+RBIP: robot-base ideal plane frame
+VCIP: virtual camera frame, projected to ideal plane
+VC: virtual camera optical frame
+
+
+process:
+1) acquire arm-mounted laser scans of "ideal" surface;
+   use this to establish 3 params of robot mount: base height and 2 tilts.
+   Do not yet know rotz of robot base w/rt ideal plane, so define this as zero rotation to establish RBIP
+   Construct RB w/rt RBIP (includes 3 params from LIDAR scan interpretation)
+   (Note: this will depend on quality of LIDAR frame transform on arm; how to improve this???)
+
+2) have robot hold laser; 
+   do IK using T_RB/RBIP, robot holds laser pointing down
+   SHOULD be able to confirm that IK results in correct flange height from IK
+     (e.g., should maintain constant height above floor for full reach of robot)
+   assuming above checks out, use IK to command robot to move along the RBIP x-axis
+   Establish laser-based points along x-axis with poster:
+   thus, poster will be aligned w/ RBIP frame
+   use robot IK and laser to establish coordinates of poster corner key points, in RBIF frame
+
+
+3) take snapshot of poster w/ physical camera in camera pose (do LIDAR scan as well, fwd AND reverse)
+   images should be rectified, but no perspective transform
+
+4) get more poster/vision/lidar data; (line up w/ RBIF frame??  unnecessary??)
+
+
+POST-PROCESS:
+ from robot/laser, have absolute coordinates of poster key points w/rt RBIF frame (and can infer other key points)
+
+ use this to establish T_PC/RBIF extrinsic transform (in camera pose)
+
+ DEFINE: T_VCIP/RBIF and T_VC/VCIP (which simply defines the height of the virtual camera)
+
+ given T_PC/RBIF, and given choices of T_VCIP/RBIF and T_VC/VCIP, can compute an idealized (virtual) image on the ideal plane
+
+ use the perspective transform node to publish this transformed image;
+
+
+ validate quality of result:
+   *place poster
+   *take snapshot (both physical camera and virtual camera) and LIDAR scans
+   *steer robot to key points; record coords w/rt RBIF
+   *post-process to confirm have good transforms
+
+ alt: use polar targets; record GUI-based robot pointing
+
+LATER: establish T_RBIF/SR
+
+

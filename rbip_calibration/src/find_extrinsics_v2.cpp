@@ -1,4 +1,21 @@
-//program to find RoadPrintz checkerboard poster from image
+//program to find camera extrinsics based on checkerboard key points
+//On 12/30/20, obtained key points for 4 poster poses.
+//recorded respective images in: roadprintz_ws/stella_calib_data/rbip_calib_12_30_20
+//also recorded key points (outermost inner intersections of checkerboard, i.e. pts 1, 18, 127, 144)
+// by steering robot w/ laser pointer to these intersections
+// this data is recorded in files: image1_key_pts_metric.csv through image4_key_pts_metric.csv
+// Grids fit to the (pretransformed) images have keypoints output in files: image1_pretransformed_corners.csv
+// through image4_pretransformed_corners.csv
+
+//CAREFUL with ordering: in images, top-left corner (pt 1) corresponds to fore/port.  MUST list robot-pointer based points
+// in order: fore/port, fore/starboard, aft/port, aft/starboard to get correspondence correct.
+// This assumes the checkerboard poster fit has "top" line (in processed image) as red line, from left to right
+// (bottom line is also red, from left to right, but first line segues by colors: ROYGBIV)
+
+//using Octave program interpret_key_pts.m, length of poster is 1.7147m (for 17 squares) and width is 0.70543 (for 7 squares)
+// avg square dimension = 0.10086  (based on lengths/widths from 16 robot/laser-pointer points in RBIP frame)
+
+//want to find extrinsic parameters of camera (in camera pose) with respect to RBIP frame
 
 
 #include <ros/ros.h>
@@ -30,6 +47,11 @@ XformUtils xformUtils;
      double cx = cj;
      double cy = ci;
 int g_ans;
+
+//these get changed in call to get_hardcoded_affine_cam_wrt_sys
+//vary params inside this fnc for search for optimal extrinsic fit
+         double g_dsearch_trans = 0.0;
+         double g_dsearch_rot = 0.0; 
      
 
 istream& operator>>(istream& ins, record_t& record) {
@@ -39,7 +61,7 @@ istream& operator>>(istream& ins, record_t& record) {
 	// read the entire line into a string (a CSV record is terminated by a newline)
 	string line;
 	getline(ins, line);
-        cout<<"getline length: "<<line.size()<<endl;
+        //cout<<"getline length: "<<line.size()<<endl;
                 
                 
 	// now we'll use a stringstream to separate the fields out of the line
@@ -142,6 +164,7 @@ Eigen::Affine3d get_hardcoded_affine_sys_wrt_cam(void) {
 	// 0.0485713   0.997492  0.0514783    2.60876
 	//         0          0          0          1
 	trans<<  -0.041274, -2.753494, 2.608757;
+        
 	Eigen::Matrix3d R;
 	Eigen::Vector3d xvec_sys_wrt_cam,yvec_sys_wrt_cam,zvec_sys_wrt_cam;
 	xvec_sys_wrt_cam <<-0.996831,0.0629916,0.0485713;
@@ -171,57 +194,47 @@ Eigen::Affine3d get_hardcoded_affine_sys_wrt_cam(void) {
 //note OpenCV convention on pixels is to express coordinates in (u,v), i.e. (col,row) order.
 //the datafiles for calibration have the pixel coords in this order
 
+//new 12/30/20: this is actually with respect to the RBIP frame, since the robot laser-pointer points are in the RBIP frame
 Eigen::Affine3d get_hardcoded_affine_cam_wrt_sys(void) {
 	Eigen::Affine3d hardcoded_affine_cam_wrt_sys;
 
 	Eigen::Vector3d trans;
 	Eigen::Matrix3d R;
 	Eigen::Vector3d xvec_cam_wrt_sys,yvec_cam_wrt_sys,zvec_cam_wrt_sys;
-    //v<< 2.81, 0,  2.87; //vector from origin of system_ref_frame to camera frame
-   
-    //R <<  -1, 0,  -0,   //orientation of camera frame w/rt system_ref_frame, optical axis points in neg z direction
-    //           0, 1, 0,
-    //           0, 0, -1;   
-
-     //   trans<<  2.76796, 0.00720234,    2.88546; //4.5426 rms pixel error in reprojection based on ~1,000 points
         
-      //  trans<<  2.76911, 0.00777921,    2.88495; //4.44
-      //  trans<<  2.76797, 0.00830871,    2.88722;
-      //  trans<<  2.76683, 0.00883616,    2.88949;//7.047 rms err
-      //  trans<< 2.76569, 0.00936156,    2.89176; //6.314
-      //  trans<< 2.76455, 0.00868492,    2.89402; //5.851
-      //  trans<<2.76341, 0.00690042,    2.89628; //5.485
-      //  trans<<2.76227, 0.00511434,    2.89854;//5.168
-       // trans<<2.76287, 0.00332767,    2.89794; //4.892
-       // trans<<2.76405, 0.00154181,    2.89699; //4.619384
-       // trans<<  2.76523, -0.000596052,      2.89584; //4.346809
-       // trans<< 2.76641, -0.00238018,     2.89469; //4.076635
-       // trans<<2.76817, -0.00451633,     2.89298; //3.807012
-       // trans<<2.76935, -0.00625178,     2.89182; //3.539035
-       // trans<< 2.77053, -0.00818654,     2.89066; //3.272630
-       // trans<<2.77171, -0.0101206,     2.8895; //3.008528
-       // trans<<2.77289, -0.0118083,    2.88834; //2.745506
-        //above is for image1 ONLY
-       //try w/ inputs 1,2,5,6,8, 11, 13 
-       //trans<< 2.78842, 0.00345516,    2.87124;  //5.53223
-       //trans<<2.79042, 0.0128573,   2.86821;  //4.775859
-       //trans<< 2.78981, 0.0128573,   2.86806  ;//4.502246
-       // trans<<2.7912, 0.0127102,   2.86666  ;//4.358967
-       // trans<<2.79391, 0.0107049,   2.86611 ; //4.333166
-       // trans<<2.79507, 0.0104049,   2.86587 ; //4.328827
-                        trans<<2.7955,  0.0109847,    2.8659 ;//4.328155
-        //compare to previous: 2.76911, 0.00777921,   2.88495;
-        
+        g_dsearch_trans = 0.0002;
+        g_dsearch_rot = 0.0002;    
+         
     //note: camera origin is about 2.885 meters high, and about 2.768m aft of rear wheels
-    //   camera origin is nearly along vehicle centerline, but shifted about 7mm to starboard
+    //   camera origin is nearly along vehicle centerline, but shifted about 7mm to starboard         
 
-    // R <<     0.0525021,  0.995724,   0.0759998,
-    //          0.9976,    -0.055738,   0.0410976,
-    //          0.0451579,  0.0736596, -0.996261;
+//trans<<1.6,  0.0109847,    2.8659 ;   
+//trans<<1.66624, -0.15308,   2.82942; //40
+//trans<<1.59124, -0.359786,      2.85; //33
+//trans<<1.60812, -0.136404,   2.86453 ;//20
+//trans<<1.53347, -0.00593869,     2.91676; //70
+        
+        
+//trans<<1.4947, -0.0602015,    2.92583; //58
+//trans<<1.63878, -0.166147,   2.88813; //48
+        // trans<<1.53278, 0.00472392,    2.92286; //67
+         //trans<<1.49399, -0.0496564,    2.92213;//55
+//trans<<1.57156, -0.10241,  2.89981;//45
+trans<<1.44604, -0.00440006, 2.86339;//0.918912
+R<<0.0561968, 0.995697, 0.0736899,
+    0.997359, -0.0593846, 0.0418105,
+    0.0460069, 0.0711456, -0.996403;
    
-     R<<  0.0483989,   0.996187,  0.0725811,
-  0.997816, -0.0514923,    0.04137,
- 0.0449498,  0.0704207,  -0.996505;
+  /* 
+   R<< 0, 1, 0,
+       1, 0, 0,
+       0, 0, -1;
+   */
+         
+
+
+     
+     
     //note: camera x-axis is ~parallel to system y-axis
     //      camera y-axis is ~parallel to system x-axis
     //      camera z-axis is ~antiparallel to system z-axis
@@ -357,56 +370,191 @@ bool read_object_pts(std::string fname,vector<Point3d> &object_pts) {
         return true;
 }
 
+//convert between Eigen objects and OpenCV Points
+Eigen::Vector3d pt3d_to_Eigen3d(Point3d pt3d) {
+    Eigen::Vector3d eigen_v3d;
+    eigen_v3d[0]=pt3d.x;
+    eigen_v3d[1]=pt3d.y;
+    eigen_v3d[2]=pt3d.z;
+    return eigen_v3d;
+}
+
+Point3d Eigen3d_to_pt3d(Eigen::Vector3d eigen_v3d) {
+    Point3d pt3d;
+    pt3d.x=eigen_v3d[0];
+    pt3d.y=eigen_v3d[1];
+    pt3d.z=eigen_v3d[2];
+    return pt3d;
+}
+
+//given the 4 corner points, (pts 1, 18, 126, 144), interpolate these to create other internal key points of poster
+//assumes 144 key points for 18x8 interior points
+//need to scan from aft/starboard to aft/port,
+//then raster from starboard to port, increasingly fore
+void interpolate_key_points(vector<Point3d> coarseObjectPoints,vector<Point3d> &objectPoints)  {
+    //hard coded for 18x8 points, assuming poster is landscape-mode view
+    int npts_length = 18;
+    int npts_width = 8;
+    Eigen::Vector3d pt1,pt18,pt127,pt144,pt_left,pt_right;
+    Eigen::Vector3d pt;
+    //pt names start counting from 1, not 0, consistent w/ spreadsheet rows
+    Point3d pt3d_1,pt3d_18,pt3d_127,pt3d_144,pt3d_left,pt3d_right,pt3d;
+    //I saved these in the order:  fore/port, fore/starboard, aft/port, aft/starboard
+    //but first point of image is aft/starboard, rastering to aft/port
+    //CHANGE: store points in order: aft/starboard, aft/port, fore/starboard, fore/port
+    pt3d_1 = coarseObjectPoints[0];
+    pt3d_18 = coarseObjectPoints[1];
+    pt3d_127 = coarseObjectPoints[2];
+    pt3d_144 = coarseObjectPoints[3];
+    pt1 = pt3d_to_Eigen3d(pt3d_1);
+    pt18 = pt3d_to_Eigen3d(pt3d_18);
+    pt127 = pt3d_to_Eigen3d(pt3d_127);
+    pt144 = pt3d_to_Eigen3d(pt3d_144);
+    
+    cout<<"pt1:   "<<pt1.transpose()<<endl;
+    cout<<"pt18:  "<<pt18.transpose()<<endl;
+    cout<<"pt127: "<<pt127.transpose()<<endl;
+    cout<<"pt144: "<<pt144.transpose()<<endl;
+
+    
+    for (int i=0;i<npts_width;i++) {
+        pt_left = pt1+ i*(pt127-pt1)/(npts_width-1); //there are 7 intervals between the 8 points along the poster width
+        pt_right= pt18+i*(pt144-pt18)/(npts_width-1);    
+        //cout<<"row "<<i<<endl;
+        //cout<<"pt_left:  "<<pt_left.transpose()<<endl;
+        //cout<<"pt_right: "<<pt_right.transpose()<<endl;
+        for (int j=0;j<npts_length;j++) {
+            pt = pt_left+j*(pt_right-pt_left)/(npts_length-1); //17 intervals between the 18 points along the poster width
+            //cout<<"pt interp: "<<pt.transpose()<<endl;
+            pt3d=Eigen3d_to_pt3d(pt);
+            objectPoints.push_back(pt3d);            
+        }
+    }
+    //cout<<"enter 1: ";
+    //cin>>g_ans;
+    
+}
+
+void save_to_csv(std::string fname,vector<Point3d> objectPoints) {
+        int npts = objectPoints.size();
+        ofstream outfile;
+        outfile.open(fname.c_str(), ios::out | ios::trunc);        
+        //vector<int> intensity_ints;
+        //vector<float> intensity_floats;
+        //intensity_floats = scan_msgs[0].intensities;
+        //int npings = scan_msgs[0].intensities.size(); //intensity_floats.size();
+        ROS_INFO("saving %d points to csv file",npts);
+        //intensity_ints.resize(nscans)
+        Point3d pt;
+        for (int ipt=0;ipt<npts;ipt++) {
+            pt = objectPoints[ipt];
+                outfile<<pt.x<<", "<<pt.y<<", "<<pt.z<<endl;
+                        
+        }
+        outfile.close(); 
+}
+
 int main(int argc, char** argv) {
     ros::init(argc, argv, "find_extrinsics"); //name this node
-    vector<Point2d> imagePoints,imagePointsReprojected;
-    vector<Point3d> objectPoints;
+    vector<Point2d> imagePoints,imagePointsReprojected,coarseImagePoints,tempImagePoints;
+    vector<Point3d> objectPoints,coarseObjectPointsAll,coarseObjectPoints1,coarseObjectPoints2,coarseObjectPoints3,coarseObjectPoints4;
     Point2d imagePoint;
     Point3d objectPoint;
     
-    cout<<"RUN ME FROM directory: ROS_WS/stella_calib_data/stella_lidar_data "<<endl;
+        //choose search for about 2min, i.e. test center and +/- three samples either side
+    //     double dsearch_trans = 0.01;
+    //     double dsearch_rot = 0.01;    
     
-    string fname = "image1_corners.csv";
+    cout<<"RUN ME FROM directory: ROS_WS/stella_calib_data/rbip_calib_12_30_20"<<endl;
+    string fname;
+    //image 1:
+     /*  */
+    fname = "image1_pretransformed_corners.csv";
     if(!read_image_pts(fname,imagePoints)) return 1;
-    fname = "lidar_pts1_metric.csv";
-    if(!read_object_pts(fname,objectPoints)) return 1;   
     
+    //read in points again, extracting just the 4 corners for coarse key points
+    tempImagePoints.clear();
+    read_image_pts(fname,tempImagePoints);
     
-    fname = "image2_corners.csv";
-    if(!read_image_pts(fname,imagePoints)) return 1;
-    fname = "lidar_pts2_metric.csv";
-    if(!read_object_pts(fname,objectPoints)) return 1;  
+    //extract just the 4 corner key points:
+    coarseImagePoints.push_back(tempImagePoints[0]); //aft/starboard
+    coarseImagePoints.push_back(tempImagePoints[17]);
+    coarseImagePoints.push_back(tempImagePoints[126]);
+    coarseImagePoints.push_back(tempImagePoints[143]);
     
-      
+    fname = "image1_key_pts_metric.csv";
+    //coarseObjectPoints.clear();
+    if(!read_object_pts(fname,coarseObjectPointsAll)) return 1;   
+    read_object_pts(fname,coarseObjectPoints1);
+    interpolate_key_points(coarseObjectPoints1,objectPoints);//tack on object1 pts to objectPoints
 
-    fname = "image5_corners.csv";
-    if(!read_image_pts(fname,imagePoints)) return 1;
-    fname = "lidar_pts5_metric.csv";
-    if(!read_object_pts(fname,objectPoints)) return 1;  
-    
-    fname = "image6_corners.csv";
-    if(!read_image_pts(fname,imagePoints)) return 1;
-    fname = "lidar_pts6_metric.csv";
-    if(!read_object_pts(fname,objectPoints)) return 1;     
 
- 
-    fname = "image8_corners.csv";
+    //image 2:  append more points to imagePoints and to coarseImagePoints and to coarseObjectPoints
+    fname = "image2_pretransformed_corners.csv";
     if(!read_image_pts(fname,imagePoints)) return 1;
-    fname = "lidar_pts8_metric.csv";
-    if(!read_object_pts(fname,objectPoints)) return 1; 
+    //read in points again, extracting just the 4 corners for coarse key points
+    tempImagePoints.clear();
+    read_image_pts(fname,tempImagePoints);
     
-    fname = "image11_corners.csv";
+    //extract just the 4 corner key points:
+    coarseImagePoints.push_back(tempImagePoints[0]); //aft/starboard
+    coarseImagePoints.push_back(tempImagePoints[17]);
+    coarseImagePoints.push_back(tempImagePoints[126]);
+    coarseImagePoints.push_back(tempImagePoints[143]);    
+    
+    fname = "image2_key_pts_metric.csv";
+    //coarseObjectPoints.clear();
+    if(!read_object_pts(fname,coarseObjectPointsAll)) return 1;   
+    read_object_pts(fname,coarseObjectPoints2);    
+    interpolate_key_points(coarseObjectPoints2,objectPoints); //interpolate and append pts to objectPoints vector
+    /* */
+    
+    /**/
+    //image 3:
+    fname = "image3_pretransformed_corners.csv";
     if(!read_image_pts(fname,imagePoints)) return 1;
-    fname = "lidar_pts11_metric.csv";
-    if(!read_object_pts(fname,objectPoints)) return 1;   
-
-    fname = "image13_corners.csv";
+    //read in points again, extracting just the 4 corners for coarse key points
+    tempImagePoints.clear();
+    read_image_pts(fname,tempImagePoints);
+    
+    //extract just the 4 corner key points:
+    coarseImagePoints.push_back(tempImagePoints[0]); //aft/starboard
+    coarseImagePoints.push_back(tempImagePoints[17]);
+    coarseImagePoints.push_back(tempImagePoints[126]);
+    coarseImagePoints.push_back(tempImagePoints[143]);    
+    
+    fname = "image3_key_pts_metric.csv";
+    //coarseObjectPoints.clear();
+    if(!read_object_pts(fname,coarseObjectPointsAll)) return 1;   
+    read_object_pts(fname,coarseObjectPoints3);    
+    interpolate_key_points(coarseObjectPoints3,objectPoints); //interpolate and append pts to objectPoints vector      
+    
+    //image 4
+    /**/
+    fname = "image4_pretransformed_corners.csv";
     if(!read_image_pts(fname,imagePoints)) return 1;
-    fname = "lidar_pts13_metric.csv";
-    if(!read_object_pts(fname,objectPoints)) return 1;   
-  /* */
+    //read in points again, extracting just the 4 corners for coarse key points
+    tempImagePoints.clear();
+    read_image_pts(fname,tempImagePoints);
+    
+    //extract just the 4 corner key points:
+    coarseImagePoints.push_back(tempImagePoints[0]); //aft/starboard
+    coarseImagePoints.push_back(tempImagePoints[17]);
+    coarseImagePoints.push_back(tempImagePoints[126]);
+    coarseImagePoints.push_back(tempImagePoints[143]);    
+    
+    
+    fname = "image4_key_pts_metric.csv";
+    //coarseObjectPoints.clear();
+    if(!read_object_pts(fname,coarseObjectPointsAll)) return 1;   
+    read_object_pts(fname,coarseObjectPoints4);        
+    interpolate_key_points(coarseObjectPoints4,objectPoints); //interpolate and append pts to objectPoints vector       
+/* */
+    
+      string interp_pts_file = "interp_pts.csv";
     
 
+    save_to_csv(interp_pts_file,objectPoints);
      
      Mat cameraMatrix = Mat::eye(3, 3, CV_64F);
      cameraMatrix.at<double>(0,0) = fx;
@@ -416,7 +564,37 @@ int main(int argc, char** argv) {
      
      Mat distCoeffs;
      Mat rvec,tvec;
+     
      //see: https://docs.opencv.org/3.4/d9/d0c/group__calib3d.html#ga549c2075fac14829ff4a58bc931c033d
+     solvePnP(coarseObjectPointsAll,coarseImagePoints,cameraMatrix,distCoeffs,rvec,tvec);
+     std::cout << "cameraMatrix : "<<endl << cameraMatrix << std::endl;
+
+     // std::cout << "distCoeffs : " << distCoeffs << std::endl;
+
+     std::cout << "Rotation vector : " << endl<< rvec << std::endl;
+
+     std::cout << "Translation vector : " << endl<< tvec << std::endl;
+     
+     //compute reprojection error:
+     
+     projectPoints(coarseObjectPointsAll,rvec,tvec,cameraMatrix,distCoeffs,imagePointsReprojected);
+     cout<<"image points: "<<endl<<coarseImagePoints<<endl;
+     cout<<"reprojections: "<<endl<<imagePointsReprojected<<endl;
+     //Mat pts_diff = imagePointsReprojected-imagePoints;
+     int coarse_npts = coarseImagePoints.size();
+     cout<<"coarse npts = "<<coarse_npts<<endl;
+
+     
+    double err = norm(imagePointsReprojected,coarseImagePoints);
+     
+
+     cout<<"rms err from solvePnP: "<<err/sqrt(coarse_npts)<<endl;
+     //cout<<"err each pt: "<<endl;
+     
+     //cout<<"enter 1: ";
+     //cin>>g_ans;
+     
+     cout<<"using all image points and interpolated object points: "<<endl;
      solvePnP(objectPoints,imagePoints,cameraMatrix,distCoeffs,rvec,tvec);
      std::cout << "cameraMatrix : "<<endl << cameraMatrix << std::endl;
 
@@ -427,6 +605,7 @@ int main(int argc, char** argv) {
      std::cout << "Translation vector : " << endl<< tvec << std::endl;
      
      //compute reprojection error:
+     
      projectPoints(objectPoints,rvec,tvec,cameraMatrix,distCoeffs,imagePointsReprojected);
      //cout<<"image points: "<<endl<<imagePoints<<endl;
      //cout<<"reprojections: "<<endl<<imagePointsReprojected<<endl;
@@ -435,11 +614,15 @@ int main(int argc, char** argv) {
      cout<<"npts = "<<npts<<endl;
 
      
-    double err = norm(imagePointsReprojected,imagePoints);
+    err = norm(imagePointsReprojected,imagePoints);
      
 
-     cout<<"rms err: "<<err/sqrt(npts)<<endl;
-     cout<<"err each pt: "<<endl;
+     cout<<"rms err from solvePnP: "<<err/sqrt(npts)<<endl;
+     cout<<"err each pt: "<<endl;     
+     
+     
+     
+     
      int group=0;
      int nrecords=0;
      for (int i=0;i<npts;i++) {
@@ -471,12 +654,16 @@ int main(int argc, char** argv) {
      cout<<"rms err: "<<err/sqrt(npts)<<endl;
     //Eigen::Affine3d affine_cam_wrt_sys = get_hardcoded_affine_sys_wrt_cam();
     Eigen::Affine3d affine_cam_wrt_sys = get_hardcoded_affine_cam_wrt_sys(); 
+    ROS_INFO("using affine_cam_wrt_RBIP: ");
+    xformUtils.printAffine(affine_cam_wrt_sys);
     Eigen::Affine3d affine_sys_wrt_cam = affine_cam_wrt_sys.inverse();
     Eigen::Affine3d affine_cam_wrt_sys_perturbed,affine_correction_camera_frame_wrt_sys, affine_best;
     Eigen::Vector3d dtrans;
     //dtrans<<0.2,0,0;
-     attempt_fit_points(affine_sys_wrt_cam,imagePoints,objectPoints);
-     
+    double rms_err;
+    rms_err= attempt_fit_points(affine_sys_wrt_cam,imagePoints,objectPoints);
+    ROS_WARN("rms_err init = %f",rms_err);
+
          double dx=0;
          double dy=0;
          double dz=0;
@@ -484,17 +671,17 @@ int main(int argc, char** argv) {
          double dphiy=0;
          double dphiz=0;     
          double rms_err_min = 1000;
-         double rms_err;
-     //affine_cam_wrt_sys..translation()=affine_cam_wrt_sys..translation()+dtrans;
-        //choose search for about 2min, i.e. test center and +/- three samples either side
-         double dsearch = 0.00015;
          
-         for (dx=-3*dsearch;dx<3*dsearch;dx+=dsearch) {
-             for (dy=-3*dsearch;dy<3*dsearch;dy+=dsearch) {
-                 for (dz=-3*dsearch;dz<3*dsearch;dz+=dsearch) {
-                     for (dphix=-3*dsearch;dphix<3*dsearch;dphix+=dsearch) {
-                         for (dphiy=-3*dsearch;dphiy<3*dsearch;dphiy+=dsearch) {
-                             for (dphiz=-3*dsearch;dphiz<3*dsearch;dphiz+=dsearch) { //(int i=0;i<npts;i++)
+     //affine_cam_wrt_sys..translation()=affine_cam_wrt_sys..translation()+dtrans;
+
+         
+         for (dx=-3*g_dsearch_trans;dx<3*g_dsearch_trans;dx+=g_dsearch_trans) {
+             ROS_INFO("dx = %f",dx);
+             for (dy=-3*g_dsearch_trans;dy<3*g_dsearch_trans;dy+=g_dsearch_trans) {
+                 for (dz=-3*g_dsearch_trans;dz<3*g_dsearch_trans;dz+=g_dsearch_trans) {
+                     for (dphix=-3*g_dsearch_rot;dphix<3*g_dsearch_rot;dphix+=g_dsearch_rot) {
+                         for (dphiy=-3*g_dsearch_rot;dphiy<3*g_dsearch_rot;dphiy+=g_dsearch_rot) {
+                             for (dphiz=-3*g_dsearch_rot;dphiz<3*g_dsearch_rot;dphiz+=g_dsearch_rot) { //(int i=0;i<npts;i++)
 
          Eigen::Vector3d dtrans;
          //dtrans<<dx,0,0;
@@ -508,6 +695,7 @@ int main(int argc, char** argv) {
          //affine_cam_wrt_sys_perturbed.translation()= affine_cam_wrt_sys_perturbed.translation()+dtrans;
          affine_sys_wrt_cam = affine_cam_wrt_sys_perturbed.inverse();
          rms_err = attempt_fit_points(affine_sys_wrt_cam,imagePoints,objectPoints);
+         //    ROS_INFO("rms_err = %f",rms_err);
 
 
          if (rms_err<rms_err_min) {
@@ -522,11 +710,25 @@ int main(int argc, char** argv) {
                       }
                      }
                  }
-             }
+             } //dy loop
          }
-         ROS_INFO("affine best: ");
+         ROS_WARN("affine best: ");
          xformUtils.printAffine(affine_best);
          ROS_INFO("rms error: %f",rms_err_min);
+         Eigen::Vector3d Origin;
+         Eigen::Matrix3d Rot;
+         Origin = affine_best.translation();
+         cout<<endl;
+         ROS_WARN("COPY/PASTE ME:");
+         cout<<endl;
+         cout<<"trans<<"<< Origin[0]<<", "<<Origin[1]<<", "<<Origin[2]<<";//"<<rms_err_min<<endl;
+         Rot=affine_best.linear();
+         cout<<"R<<"<< Rot(0,0)<<", "<<Rot(0,1)<<", "<<Rot(0,2)<<","<<endl;
+         cout<<"    "<< Rot(1,0)<<", "<<Rot(1,1)<<", "<<Rot(1,2)<<","<<endl;
+         cout<<"    "<< Rot(2,0)<<", "<<Rot(2,1)<<", "<<Rot(2,2)<<";"<<endl;
+         cout<<endl;
+         
+         
          affine_sys_wrt_cam = affine_best.inverse();
          ROS_INFO("affine sys_wrt_cam: ");
           xformUtils.printAffine(affine_sys_wrt_cam);

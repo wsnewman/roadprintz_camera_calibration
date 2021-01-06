@@ -1,0 +1,17 @@
+extrinsic cal applied to gazebo simu:
+
+   <joint name="alt_camera_joint1" type="fixed">
+      <origin rpy="1.5916 0 0" xyz="1.066 -0.07 0.04"/>
+
+and:
+   <horizontal_fov>1.65</horizontal_fov>
+
+Conversion from pixel (i,j) --> (x,y,z)/system_ref_frame
+on ground plane, z=0
+
+K_pix = 160 pixels/meter
+i0 = 506
+j0 = -78
+
+x/sys = (j-j0)/K_pix
+y/sys = (i-i0)/K_pix 

@@ -1,0 +1,55 @@
+cam_poster_calib_test_service_node.cpp notes:
+
+
+create calibration test pgm:
+
+make it a service
+
+send code 0 to go to camera pose
+send code 1 to take a snapshot
+  (display the mark-up result)
+send code 2 to go to target pose
+
+requires running test_laser_moves_RBIP_frame as well, which presents the motion service
+  (like canned_moves)
+
+needs: x service message for poster_calib_test
+       x service for poster_calib_test:  cam_poster_calib_test_service
+
+       x send service rqst to motion service
+       interpret result
+       error responses, e.g. don't take a pic if not in camera posex
+           don't make a move unless in camera pose
+           (but should be able to return to camera pose from anywhere)
+
+       find-poster fnc
+       new fnc to convert u,v to x,y
+
+test poster finding:
+
+need to publish a fake image:
+ in a suitable directory, run:
+rosrun roadprintz_camera_calibration fake_publish_camera_from_image
+  choose option for topic /camera/image_rect_color
+  enter an image filename (in current directory)
+  this will repeatedly publish the stored image on topic /camera/image_rect_color
+
+alt: publish to pre-transformed topic, and run:
+ rosrun roadprintz_camera_calibration perspective_transform_v2
+this will remove perspective distortion and publish an idealized, virtual image  
+
+run the test-moves interface/bridge node:
+
+  rosrun roadprintz_camera_calibration cam_poster_calib_test_service_node
+
+run the temporary interface (to be changed to GUI buttons)
+  rosrun roadprintz_camera_calibration cam_poster_calib_test_main 
+
+to move robot, also need:
+roslaunch roadprintz_launch stella_sim_no_camera.launch (or actuall stella.launch)
+ rosrun test_moves test_laser_moves_RBIP_frame
+
+
+
+  
+

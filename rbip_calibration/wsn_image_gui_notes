@@ -1,0 +1,39 @@
+wsn_gui:
+
+rosrun roadprintz_camera_calibration interactive_image_gui
+
+in interactive_image_gui, change value of rescale_factor to size image to screen
+
+when a pixel is clicked, the values are displayed.
+
+Can test w/ known fiducials, e.g.:
+cd /roadprintz_ws/stella_calib_data/stella_lidar_data
+rosrun pcl_utils debug_publish_image_from_camera
+  (respond, e.g., image1.png)
+
+this will publish a static image to image topic;
+known fiducials are in file:
+ image1_corners.csv
+
+observed mouse clicks agree with list of key points (fiducials)...within placement error
+
+
+
+next steps:
+
+incorporate transform, (u,v)--> (x,y,z)/sys_ref_frame
+
+then send the robot to this point:
+
+(use new laser transform in place of tool transform)
+
+do this like painting approach?  from home pose?  from camera pose?
+
+incorporate traj utils in this GUI???
+
+(have alt service or action-server available???)
+
+would need IK to get joint-space soln
+(define fixed height)
+
+how to behave:  go to point, dwell, go back to camera pose???
