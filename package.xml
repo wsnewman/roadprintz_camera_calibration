@@ -31,11 +31,11 @@
   <!-- Dependencies can be catkin packages or system dependencies -->
   <!-- Examples: -->
   <!-- Use build_depend for packages you need at compile time: -->
-  <!--   <build_depend>message_generation</build_depend> -->
+  <build_depend>message_generation</build_depend> 
   <!-- Use buildtool_depend for build tool packages: -->
   <!--   <buildtool_depend>catkin</buildtool_depend> -->
   <!-- Use run_depend for packages you need at runtime: -->
-  <!--   <run_depend>message_runtime</run_depend> -->
+ <run_depend>message_runtime</run_depend> 
   <!-- Use test_depend for packages you need only for testing: -->
   <!--   <test_depend>gtest</test_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
@@ -51,19 +51,25 @@
 <build_depend>pcl_generator</build_depend>
 <build_depend>LidarScanUtils</build_depend>
 
-
+  <build_depend>tf</build_depend>
+  <build_depend>xform_utils</build_depend>    
+<build_depend>test_moves</build_depend> 
 
   <run_depend>roscpp</run_depend>
 <run_depend>image_transport</run_depend>
 <run_depend>cv_bridge</run_depend>
 <run_depend>sensor_msgs</run_depend>
 <run_depend>geometry_msgs</run_depend>
-
+ 
 <run_depend>std_srvs</run_depend>
 <run_depend>libceres-dev</run_depend>
 <run_depend>pcl_generator</run_depend> 
 
 <run_depend>LidarScanUtils</run_depend> 
+
+  <run_depend>tf</run_depend>
+  <run_depend>xform_utils</run_depend>    
+  <run_depend>test_moves</run_depend>    
 
 
   <!-- The export tag contains other, unspecified, tags -->

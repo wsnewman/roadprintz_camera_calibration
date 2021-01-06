@@ -1,0 +1,14 @@
+#service message: specify desired action code
+#
+int32 GO_TO_CAMERA_POSE=0
+int32 TAKE_SNAPSHOT=1
+int32 GO_TO_TARGET_POSE=2
+int32 cmd_code
+---
+int32 OK=0
+int32 NOT_IN_CAMERA_POSE=1
+int32 DANGEROUS_START_POSE=2
+int32 DANGEROUS_GOAL_POSE=3
+int32 POSTER_NOT_FOUND=4
+int32 err_code
+bool success
