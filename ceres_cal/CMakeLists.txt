@@ -34,6 +34,7 @@ add_definitions(${EIGEN_DEFINITIONS})
 
 # Libraries: uncomment the following and edit arguments to create a new library
 cs_add_library(circle_detector src/circle_detector.cpp)   
+cs_add_library(openCV_utils src/openCV_utils.cpp)  
 
 # Executables: uncomment the following and edit arguments to compile new nodes
 # may add more of these lines for more nodes from the same package
@@ -45,6 +46,8 @@ cs_add_executable(interactive_image_gui2 src/interactive_image_gui2.cpp)
 cs_add_executable(interactive_image_gui3 src/interactive_image_gui3.cpp)
 
 cs_add_executable(perspective_transform src/perspective_transform.cpp)
+cs_add_executable(perspective_transform_v2 src/perspective_transform_v2.cpp)
+
 
 cs_add_executable(ipcam src/ipcam.cpp)
 cs_add_executable(ipcam_svc src/ipcam_svc.cpp)
@@ -57,6 +60,15 @@ cs_add_executable(analyze_image16 src/analyze_image16.cpp)
 cs_add_executable(find_poster src/find_poster.cpp)
 cs_add_executable(find_poster_from_lidar src/find_poster_from_lidar.cpp)
 cs_add_executable(find_extrinsics src/find_extrinsics.cpp)
+cs_add_executable(find_extrinsics_v2 src/find_extrinsics_v2.cpp)
+
+cs_add_executable(find_poster_9x7 src/find_poster_9x7.cpp)
+
+cs_add_executable(fake_publish_camera_from_image src/fake_publish_camera_from_image.cpp)
+cs_add_executable(openCV_utils_example_main src/openCV_utils_example_main.cpp)
+
+cs_add_executable(cam_poster_calib_test_service_node src/cam_poster_calib_test_service_node.cpp)
+cs_add_executable(cam_poster_calib_test_main src/cam_poster_calib_test_main.cpp)
 
 
 #cs_add_executable(wsn_ceres_helloworld src/wsn_ceres_helloworld.cpp)
@@ -73,6 +85,8 @@ target_link_libraries( interactive_image_gui2 ${OpenCV_LIBS})
 target_link_libraries( interactive_image_gui3 ${OpenCV_LIBS})
 
 target_link_libraries( perspective_transform ${OpenCV_LIBS})
+target_link_libraries( perspective_transform_v2 ${OpenCV_LIBS})
+
 
 target_link_libraries( ipcam ${OpenCV_LIBS})
 target_link_libraries( ipcam_svc ${OpenCV_LIBS})
@@ -83,8 +97,17 @@ target_link_libraries( rp_find_template  ${OpenCV_LIBS})
 target_link_libraries( analyze_image17  ${OpenCV_LIBS})
 target_link_libraries( analyze_image16  ${OpenCV_LIBS})
 target_link_libraries( find_poster  ${OpenCV_LIBS})
+target_link_libraries( find_poster_9x7  ${OpenCV_LIBS})
 target_link_libraries( find_poster_from_lidar  ${OpenCV_LIBS})
 target_link_libraries( find_extrinsics  ${OpenCV_LIBS})
+target_link_libraries( find_extrinsics_v2  ${OpenCV_LIBS})
+
+target_link_libraries(fake_publish_camera_from_image  ${OpenCV_LIBS})
+
+target_link_libraries( openCV_utils_example_main openCV_utils ${OpenCV_LIBS})
+target_link_libraries( cam_poster_calib_test_service_node openCV_utils ${OpenCV_LIBS})
+
+
 cs_install()
 cs_export()
     
