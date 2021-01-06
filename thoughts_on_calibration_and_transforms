@@ -1,0 +1,131 @@
+transform corrections:
+
+hard-coded T_cam/sys
+In GUI, had to add offsets x and y
+
+where is the error?
+
+Camera fiducials are based on laser scan.
+transforms involved are:
+
+lidar/forearm
+forearm/base_link
+base_link/sys
+
+camera/forearm (not used yet)
+forearm/base_link
+base_link/sys
+
+alt:
+  could get lidar plane/base_link, which would only involve:
+   forearm/base_link (kinematics)
+   lidar/forearm (Lidar mount)
+   ALSO, LIDAR ping offset unknown
+
+ then try to find T_cam/forearm consistent w/ reconciling images to LIDAR scans (in base_link frame)
+
+note: T_forearm/base_link is identical for camera transform and lidar transform
+
+ALSO, T_base_link/sys is identical for camera and LIDAR frames
+
+interpret:
+  point p/sys is reconciled in sys frame for camera and LIDAR (according to extrinsics soln)
+  
+  but if T_base_link/sys is wrong, then:
+
+  presumed   imagept/sys =   T_base_link/sys* T_forearm/base_link *T_cam/forearm *p/cam
+   AND       lidarpt/sys = T_base_link/sys* T_forearm/base_link *T_lidar/forearm *p/lidar
+
+  reconciliation --> imagept/sys = lidarpt/sys 
+  premultiply by inverses of T_base_link/sys* T_forearm/base_link -->
+       imagept/forearm = lidarpt/forearm
+
+  T_cam/forearm *p/cam = T_lidar/forearm *p/lidar
+
+  --> would NOT see influence of errors in T_base_link/sys
+  but there is SOME influence of T_forearm/base_link, since LIDAR does scan via R-joint
+
+  could describe correspondence in elbow frame, then uncertainty is T_forearm/elbow as forearm rotates LIDAR.
+  perhaps assume that T_forearm/elbow is reliable (though there is some influence of timing jspace vs lidar during scan)
+    SO THIS IS A SOURCE OF ERROR
+   (disregard for now)
+
+
+ROBOT COORDS:
+   T_tool/sys =   T_base_link/sys* T_flange/base_link(qvec)* T_tool/flange
+
+w/rt base_link, pRobot/base_link = T_tool/base_link = T_flange/base_link(qvec)* T_tool/flange
+   BUT I DO trust kinematics (T_flange/base_link(qvec)) and laser mount (T_tool/flange)
+   so... pRobot/base_link should be good, even if T_base_link/sys is uncertain
+
+this SHOULD match: pCamera/base_link =    T_forearm/base_link *  T_cam/forearm *  p/cam
+                   pLidar/base_link = T_forearm/base_link *  T_lidar/forearm * p/lidar
+and need to match: pTool/base_link =   T_forearm/base_link(q) * T_flange/forearm(q)* pTool/flange
+
+say kinematics is good...then:  SHOULD have 
+   T_cam/forearm *  p/cam = T_lidar/forearm * p/lidar = T_flange/forearm(q)* pTool/flange
+
+BUT  have good match T_cam/forearm *  p/cam = T_lidar/forearm * p/lidar (per extrinsics soln)
+
+NOTE: pCamera is really only a vector direction; must trust LIDAR plane to get 3D coords
+
+ALSO, T_cam/forearm and T_lidar/forearm could be shifted by the same amount, and would still agree with each other;
+
+I TRUSTED T_lidar/forearm; what if I shift this by empirical amount?  and shift T_cam/forearm by same amount?
+would still get extrinsic agreement;
+
+--> try adjusting LIDAR-to-Forearm transform;  (hard to believe)
+alt, adjust T_tool/flange (harder to believe)
+
+adjusting T_base_link/sys will not help
+
+pRobot/sys may be wrong, but pCam and pLIDAR would be wrong by same amount;
+(WILL need accurate T_base_link/sys when using localization)
+
+double HACK_SYS_REF_FRAME_X_OFFSET = 0.040;
+double HACK_SYS_REF_FRAME_Y_OFFSET = -0.010;
+
+what if...
+get robot coords for laser pointing at fiducials of poster
+get LIDAR scan of poster and find fiducials
+ reconcile
+
+---lidar improvements---
+how planar is the lidar plane fit?
+what offset and angle?  (ideally, coplanar with vehicle sys_ref_frame)
+
+to test planar result:
+
+*start up stella_sim
+*start up publication of saved lidar scan (pcd from poster data?  LIDAR raw scan data?)
+*move template to some region
+*click "paint"...look at rqt_console to get planar patch offset and normal
+
+note: conversion to Cartesian points requires:
+  T_lidar/forearm
+  correct offset for ping radii (+/- 60mm)
+  T_forearm/base_link(q_vec)
+  T_base_link/sys
+
+  PCD files already assume this (vs raw scan data: scans and joint_states)
+
+  BUT, can get ranges, intensities, joint_angs from saved file via service
+pcl_generator::MapperSrvRequest::RECONSTRUCT_MAP
+  w/ filename modifier in request field
+
+
+
+
+
+  
+
+
+
+
+
+    
+
+
+   
+
+
