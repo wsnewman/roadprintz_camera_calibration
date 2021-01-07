@@ -13,13 +13,6 @@
 #include <Eigen/Geometry>
 
 //MAGIC NUMBERS:
-    //intrinsics (of original camera);
-//THESE SHOULD GO AWAY
-//double g_fx = 1637.367343; 
-//double g_fy = 1638.139550;   
-//double g_cx = 1313.144667;
-//double g_cy = 774.029343;
-//don't use the above; use instead values for virtual (ideal) camera:
 
 //virtual image values (after perspective transform)
 //where to get these...must be consistent w/ perspective transform node;
@@ -45,8 +38,6 @@ using namespace std;
 int g_ans=0;
 ros::ServiceClient *g_client_ptr;
 
-//double g_cam_x=0;
-//double g_cam_y=0;
 double g_target_x=1.5;
 double g_target_y=0.0;
 bool g_got_target=false;
@@ -186,8 +177,6 @@ bool calibCb(rbip_calibration::CamPosterCalibTestSrvRequest& request, rbip_calib
 
     
 
-
-
 int main(int argc, char** argv)
 {
   ros::init(argc, argv, "interactive_image_gui");
@@ -197,8 +186,6 @@ int main(int argc, char** argv)
 
     ros::ServiceClient client = nh.serviceClient<test_moves::TestMoveSrv>("test_moves_service");
     g_client_ptr = &client;
-    //test_moves::TestMoveSrv srv;  
-    //srv.request.rtn_to_camera_pose=false; //first call will NOT be return to camera pose
 
     ros::ServiceServer service = nh.advertiseService("cam_poster_calib_test_service", calibCb);
     OpenCvUtils open_cv_utils;
@@ -207,31 +194,6 @@ int main(int argc, char** argv)
     
     ros::spin();
 
- //std_msgs::Bool rtn_bool;
- //rtn_bool.data=1;
- /*
-  while(ros::ok()) {
-    cout<<"enter desired x value: ";
-    cin>>des_x;
-    cout<<"enter desired y value: ";
-    cin>>des_y;
-    cout<<"enter 1 to send motion command: ";
-    cin>>g_ans;
-    if (g_ans==1) {
-       ROS_INFO("sending motion command service request");
-          srv.request.rtn_to_camera_pose=false;
-          srv.request.x_wrt_RBIP= des_x;
-          srv.request.y_wrt_RBIP= des_y;
- 	  client.call(srv);
-          ros::Duration(2.0).sleep();
-
-          cout<<"enter 1 to return to camera pose: ";
-          cin>>g_ans;
-          srv.request.rtn_to_camera_pose=true;
-          client.call(srv);
-    }
-  }
-    */
   return 0;
 }
 

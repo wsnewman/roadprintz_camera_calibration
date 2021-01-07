@@ -1,16 +1,8 @@
 //program to find RoadPrintz checkerboard poster from image
 #include <rbip_calibration/openCV_utils.h>
 
-/*
-#include <ros/ros.h>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include "opencv2/calib3d.hpp"
-#include <iostream>
-#include <fstream>
-*/
 
-//this version is not part of class, and it takes args as Mat instead of filenames
+//this function is not part of class, and it takes args as Mat instead of filenames
 //should fold this into openCV_utils for code re-use instead of redundancy
 
 bool find_poster_in_image(Mat input_image, int n_keypts_wide, int n_keypts_high, bool &preferred_orientation, double &x_upper_left, double &y_upper_left, Mat &output_image) {
@@ -29,8 +21,6 @@ bool find_poster_in_image(Mat input_image, int n_keypts_wide, int n_keypts_high,
       ROS_ERROR("did not find poster"); //<<endl;
       return false;
     } 
-
-
 
 
 
@@ -134,10 +124,6 @@ bool OpenCvUtils::find_poster(string path, string fname_image_root,int n_keypts_
       return false;
     } 
 
-
-
-
-
     //cout<<"calling cornerSubPix"<<endl;
     cornerSubPix(src_gray, corners, Size(11, 11), Size(-1, -1),
                      TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
@@ -236,13 +222,6 @@ public: */
     image_pub_ = it_.advertise(g_output_image_topic.c_str(), 1);
 
     cv::namedWindow(OPENCV_WINDOW);
-    //cv::namedWindow(OPENCV_ZOOM_WINDOW);
-         //set the callback function for any mouse event
-     //setMouseCallback(OPENCV_WINDOW, ImageConverterMouseCB, NULL);
-     //setMouseCallback(OPENCV_WINDOW, ImageConverterMouseCB, NULL);
-     //setMouseCallback(OPENCV_ZOOM_WINDOW, ImageConverterZoomedMouseCB, NULL);
-     //    minimal_subscriber_ = nh_.subscribe("example_class_input_topic", 1, &ExampleRosClass::subscriberCallback,this);  
-
   }
 
 
@@ -265,7 +244,7 @@ public: */
     Mat dst_smaller;
     Mat src = cv_ptr->image;
     g_src = cv_ptr->image;
-    ROS_INFO("imageCb: received new image");
+    //ROS_INFO("imageCb: received new image");
     
     if (!g_got_new_image) {
         g_copy_of_image = g_src.clone();
