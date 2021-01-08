@@ -20,6 +20,7 @@
 //HMI expects "/camera/image_rect_color" (actually, compressed version)
 //but want to pipe this to a perspective transform first
 //string image_topic="/camera/image_rect_color";
+std::string image_topic0="/camera_pretransformed/image_raw";
 std::string image_topic1="/camera_pretransformed/image_rect_color";
 std::string g_image_topic;
 std::string image_topic2="/camera/image_rect_color";
@@ -36,7 +37,7 @@ int g_ans;
     
 
 int main(int argc, char** argv) {
-    ros::init(argc, argv, "debug_publish_image_from_camera"); //node name
+    ros::init(argc, argv, "fake_publish_image_from_camera"); //node name
     ros::NodeHandle nh;
     int topic_choice=0;
     image_transport::ImageTransport it(nh);
@@ -47,10 +48,14 @@ int main(int argc, char** argv) {
     string ros_ws_path = getenv("ROS_WORKSPACE");
     //ROS_INFO_STREAM("ROS_WORKSPACE: " << g_ros_ws_path << endl);
     ROS_INFO("run this node from the directory that contains the image of interest");
+    cout<<"enter 0 to publish to /camera_pretransformed/image_raw"<<endl;
     cout<<"enter 1 to publish to /camera_pretransformed/image_rect_color"<<endl;
     cout<<"enter 2 to publish to /camera/image_rect_color:  ";
     cin>>topic_choice;
-    if (topic_choice==1) {
+    if (topic_choice==0) {
+        g_image_topic = image_topic0;
+    }    
+    else if (topic_choice==1) {
         g_image_topic = image_topic1;
     }
     else if (topic_choice==2) {

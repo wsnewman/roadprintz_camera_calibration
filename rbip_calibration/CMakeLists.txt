@@ -52,6 +52,7 @@ cs_add_executable(interactive_image_gui3 src/interactive_image_gui3.cpp)
 #cs_add_executable(perspective_transform src/perspective_transform.cpp)
 
 cs_add_executable(perspective_transform_v2 src/perspective_transform_v2.cpp)
+cs_add_executable(perspective_transform_v3 src/perspective_transform_v3.cpp)
 
 
 #cs_add_executable(ipcam src/ipcam.cpp)
@@ -93,6 +94,7 @@ target_link_libraries( interactive_image_gui3 ${OpenCV_LIBS})
 
 #target_link_libraries( perspective_transform ${OpenCV_LIBS})
 target_link_libraries( perspective_transform_v2 ${OpenCV_LIBS})
+target_link_libraries( perspective_transform_v3 ${OpenCV_LIBS})
 
 
 #target_link_libraries( ipcam ${OpenCV_LIBS})

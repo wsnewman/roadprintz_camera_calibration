@@ -1,0 +1,64 @@
+
+add a client to surface mapper service:
+
+global ptr for client:
+ros::ServiceClient *g_surface_map_service_client_ptr;
+pcl_generator::MapperSrv g_map_srv;
+
+
+//instantiation in main:
+ros::ServiceClient client = nh.serviceClient<pcl_generator::MapperSrv>("surface_map_service");
+pcl_generator::MapperSrv srv;
+
+    srv.request.x = 3; //attempt an interpolation to see if service is alive and has a map
+    srv.request.y = 0;
+
+    while (!client.call(srv)) {
+        ROS_WARN("failed call to surface_map_service; is this node running?");
+        ros::Duration(1.0).sleep();
+    }
+    ROS_INFO("call to surface_map_service succeeded");
+
+g_surface_map_service_client_ptr = &client;
+
+
+
+   srv.request.x_max = x_max;
+    srv.request.y_max = y_max;
+    srv.request.x_min = x_min;
+    srv.request.y_min = y_min;
+
+    //new in v4: fit to a plane, and receive back the planar description
+    if (g_surface_map_service_client_ptr->call(srv)) {
+        //z = srv.response.z;
+        bool response_code = srv.response.response_code;
+        if (response_code == pcl_generator::MapperSrvResponse::SUCCESS) {
+            double rms_err, max_err;
+            rms_err = srv.response.rms_err;
+            max_pos_err = srv.response.max_pos_err;
+            max_neg_err = srv.response.max_neg_err;
+
+            //outFile << sNoPath.c_str() << setw(width) << rms_err << setw(width) << max_pos_err << setw(width) << max_neg_err << "\n";
+
+            ROS_INFO("rms_err, max_pos_err,max_neg_err = %f, %f, %f", rms_err, max_pos_err, max_neg_err);
+
+            //double plane_z_interp(double x, double y, double plane_dist, Eigen::Vector3d normal) {
+            ROS_INFO("received srv.response.planar_normal_z = %f", srv.response.planar_normal_z);
+            plane_normal(0) = srv.response.planar_normal_x;
+            plane_normal(1) = srv.response.planar_normal_y;
+            plane_normal(2) = srv.response.planar_normal_z;
+            plane_dist = srv.response.plane_dist;
+            ROS_INFO("plane_dist = %f; plane_normal = %f, %f, %f", plane_dist, plane_normal(0), plane_normal(1), plane_normal(2));
+
+        } else {
+            ROS_WARN("could not interpolate over specified patch");
+            return symbol_painter_as::SymbolPainterResult::BAD_SURFACE_INTERPOLATION;
+        }
+    } else {
+        ROS_WARN("unexpected failed call to service surface_map_service");
+        //PLAN_UNREACHABLE
+        return symbol_painter_as::SymbolPainterResult::BAD_SURFACE_INTERPOLATION;
+    }
+
+
+

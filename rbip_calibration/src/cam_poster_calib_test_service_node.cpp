@@ -19,18 +19,19 @@
 //parameter server?  publish by perspective transform node? put in an include file associated w/ perspective transformer?
 //launch file frame publisher for virtual_camera_frame?
 
-const int g_image_width = 2688;
-const int g_image_height = 1520; 
-
-//ISSUE: in image, I am seeing more like 592 to 593 pixels/meter
-double cx_virt = g_image_width/2.0;
-double cy_virt = g_image_height/2.0;
-
+#include <camera_parameters/virtual_cam_params.h>
+/*
 //location of virtual camera: 1.45 meters back and 3.0 meters high
 const double VERT_CAM_HEIGHT=3.0; //this actually makes NO difference; but need some value here 
 const double VIRT_CAM_X_OFFSET=1.45; //choose this to be near the physical camera offset
 //scaling of virtual camera; can only do this w/ RBIP plane; equivalent to defining a focal length
 const double KPIX = 590.0; //pixels per meter for virtual image; MUST MAKE THIS SAME AS IN PERSPECTIVE_TRANSFORM NOD
+*/
+
+double cx_virt = g_virt_image_width/2.0;
+double cy_virt = g_virt_image_height/2.0;
+
+
 
 OpenCvUtils *g_open_cv_utils_ptr;
 
