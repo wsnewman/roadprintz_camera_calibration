@@ -54,18 +54,6 @@ const double RESCALE_FACTOR=2.0; //scale original image down by this factor to f
 
 
 //convert camera image into an ideal image, as viewed normal to the ideal plane
-//SHOULD get the following values from camera_info...fix later
-
-
-//numbers for Stella's camera:
-/*
-const int g_image_width = 2688;
-const int g_image_height = 1520;  
-const double   g_image_xc = 1313.144667; //do these change  for rectified image?  I think not
-const double   g_image_yc = 774.029343;
-const double g_image_fx = 1637.367343;
-const double g_image_fy = 1638.139550;
-*/
 
 
 static const std::string OPENCV_WINDOW = "ImageWindow";
@@ -171,15 +159,15 @@ bool valid_uv(int u,int v,int Nu,int Nv) {
 void compute_mappings(Eigen::Affine3d affine_virt_cam_wrt_cam, 
   double cx_src,double cy_src, double fx_src, double fy_src, double vert_height, double kpix)
 {
-    //int u_cam_mappings[g_image_width][g_image_height];
-    //int v_cam_mappings[g_image_width][g_image_height];
+    //int u_cam_mappings[g_rect_width][g_rect_height];
+    //int v_cam_mappings[g_rect_width][g_rect_height];
     double cx_virt = g_virt_image_width/2.0;
-    double cy_virt = g_image_height/2.0;
+    double cy_virt = g_rect_height/2.0;
     Eigen::Vector3d p_wrt_virt,p_wrt_cam;
   int u_cam,v_cam;
   p_wrt_virt[2] = vert_height;
  for (int u_virt=0;u_virt<g_virt_image_width;u_virt++) {
-  for (int v_virt=0;v_virt<g_image_height;v_virt++) {
+  for (int v_virt=0;v_virt<g_virt_image_height;v_virt++) {
       u_cam_mappings[u_virt][v_virt] = 0; //default
       v_cam_mappings[u_virt][v_virt] = 0;
 
@@ -196,7 +184,7 @@ void compute_mappings(Eigen::Affine3d affine_virt_cam_wrt_cam,
     //cout<<"u_cam, v_cam = "<<u_cam<<", "<<v_cam<<endl;
     
     //validity w/rt dimensions of pre-transformed image:
-    if (valid_uv(u_cam,v_cam,g_image_width,g_image_height)) { 
+    if (valid_uv(u_cam,v_cam,g_rect_width,g_rect_height)) { 
         u_cam_mappings[u_virt][v_virt] = u_cam;
         v_cam_mappings[u_virt][v_virt] = v_cam;
     } 
@@ -252,7 +240,7 @@ public:
 
     image_pub_ = it_.advertise(g_output_image_topic.c_str(), 1);
 
-    cv::namedWindow(OPENCV_WINDOW);
+    //cv::namedWindow(OPENCV_WINDOW);
     //cv::namedWindow(OPENCV_ZOOM_WINDOW);
          //set the callback function for any mouse event
      //setMouseCallback(OPENCV_WINDOW, ImageConverterMouseCB, NULL);
@@ -264,7 +252,7 @@ public:
 
   ~ImageConverter()
   {
-    cv::destroyWindow(OPENCV_WINDOW);
+    //cv::destroyWindow(OPENCV_WINDOW);
     //cv::destroyWindow(OPENCV_ZOOM_WINDOW);
   }
 
@@ -319,10 +307,10 @@ public:
          g_virtual_image.at<cv::Vec3b>(v,u) =   color; //CV_RGB(0,0,0);
        }
       }
-     imshow(OPENCV_WINDOW, g_virtual_image);
+     //imshow(OPENCV_WINDOW, g_virtual_image);
      //cout<<"enter 1 to continue: ";
      //cin>>g_ans;
-    cv::waitKey(3);
+    //cv::waitKey(3);
 
     // Output modified video stream
     //image_pub_.publish(cv_ptr->toImageMsg());
@@ -344,9 +332,9 @@ public:
     transform_image(g_src,g_virtual_image);
     //cout<<"done transforming image"<<endl;
     resize(g_virtual_image, dst_smaller, Size(g_virtual_image.cols/RESCALE_FACTOR,g_virtual_image.rows/RESCALE_FACTOR));
-    imshow(OPENCV_WINDOW, dst_smaller);  
+    //imshow(OPENCV_WINDOW, dst_smaller);  
 
-    cv::waitKey(3);
+    //cv::waitKey(3);
 
     // publish transformed image
 

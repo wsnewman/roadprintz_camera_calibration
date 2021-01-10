@@ -1,0 +1,34 @@
+example images from new transforms;
+
+run with:
+
+either rosrun ip_cam stella_ipcam_driver3
+OR
+cd to an image directory and run:
+rosrun ip_cam stella_fake_publish_camera_from_image 
+  and choose to publish raw images
+  and type in example raw image name in current directory
+
+Run the custom rectifier with:
+
+rosrun ip_cam stella_ipcam_rectifier 
+
+this takes in raw images (pre-transformed) and performs rectification, similar to image_proc, but with 
+wider output image (less cropping)
+output is /camera_pretransformed/image_rect_color
+
+Run the perspective transformer:
+
+rosrun rbip_calibration perspective_transform_v3
+
+this takes in rectified but pre-transformed images, performs perspective transformation, and publishes
+the result to /camera/image_rect_color
+
+The resulting image should be a virtual, top-down view with known pixels/meter at RBIP plane level
+
+NEXT, want to transform this again to account for image height, then reproject as equivalent image on ground plane
+(for accurate template alignment)
+
+ 
+
+

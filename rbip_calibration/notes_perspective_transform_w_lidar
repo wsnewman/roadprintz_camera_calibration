@@ -60,5 +60,19 @@ g_surface_map_service_client_ptr = &client;
         return symbol_painter_as::SymbolPainterResult::BAD_SURFACE_INTERPOLATION;
     }
 
+----------------------
+quick hack:  
+ *find poster
+ *do plane fit to poster region (estimated rectangle) from surface_mapper
+ *recompute corner coords based on plane-fit height
+ *send robot to adjusted (x,y) coords, offset by LIDAR height
+
+BUT...does not help progress towards template overlay
+
+REVISIT surface mapper.  
+objective: demo precision stitching w/ rectangles
+
+
+
 
 
