@@ -63,10 +63,12 @@ cs_add_executable(perspective_transform_v3 src/perspective_transform_v3.cpp)
 
 #cs_add_executable(rp_find_template src/rp_find_template.cpp)
 
-#cs_add_executable(find_poster src/find_poster.cpp)
+cs_add_executable(find_poster src/find_poster.cpp)
 cs_add_executable(find_poster_from_lidar src/find_poster_from_lidar.cpp)
 #cs_add_executable(find_extrinsics src/manual_find_extrinsics.cpp)
 #cs_add_executable(find_extrinsics_v2 src/find_extrinsics_v2.cpp)
+cs_add_executable(find_extrinsics_v3 src/find_extrinsics_v3.cpp)
+
 
 cs_add_executable(find_poster_9x7 src/find_poster_9x7.cpp)
 
@@ -104,11 +106,13 @@ target_link_libraries( perspective_transform_v3 ${OpenCV_LIBS})
 #target_link_libraries( extrinsic_calib  ${OpenCV_LIBS})
 #target_link_libraries( rp_find_template  ${OpenCV_LIBS})
 
-#target_link_libraries( find_poster  ${OpenCV_LIBS})
+target_link_libraries( find_poster  ${OpenCV_LIBS})
 target_link_libraries( find_poster_9x7  ${OpenCV_LIBS})
 target_link_libraries( find_poster_from_lidar  ${OpenCV_LIBS})
 #target_link_libraries( manual_find_extrinsics  ${OpenCV_LIBS})
 #target_link_libraries( find_extrinsics_v2  ${OpenCV_LIBS})
+target_link_libraries( find_extrinsics_v3  ${OpenCV_LIBS})
+
 
 target_link_libraries(fake_publish_camera_from_image  ${OpenCV_LIBS})
 
