@@ -1,10 +1,14 @@
-//v2: 
-//program to convert an input image into a top-down image, normal to ideal plane and aligned w/ x-y axes
-//extend to projections based on LIDAR data...lots of work
+//rbip_image_projector.cpp
+//this node is part of the image pipeline
+// it takes in an image that is already rectified and transformed into an ideal, top-down-view virtual image
+// however, there is still a zoom effect from variations in elevation of the surface being viewed
+// This node requests a surface map from the mapper node (from LIDAR) as z[ix][jy]
+// It transforms the input image to compute a synthetic image corresponding to projection onto the LIDAR (ideal) plane
+// The intent is for images of symbols to fit the size of fixed templates
+// Painting will still be performed to computed heights (per the height map), but user graphical overlays will
+// use this projected image to get correct scaling and correct (x,y) values for painting
 
-
-
-//include correction for surface-map height; could be very slow
+// correction for surface-map height could be very slow
 // rqrs knowledge of input image extrinsics in terms of an affine transform
 
 #include <ros/ros.h>
@@ -30,11 +34,13 @@
 XformUtils xform_utils;
 
 #include <camera_parameters/virtual_cam_params.h>
-#include <camera_parameters/stella_amcrest_ipcam_params.h>
-#include <camera_parameters/CamCalib.h>
+//#include <camera_parameters/stella_amcrest_ipcam_params.h>
+//#include <camera_parameters/CamCalib.h>
 
-int g_image_xc = g_rect_width/2;
-int g_image_yc = g_rect_height/2;
+#include<roadprintz_msgs/VecOfDoubles.h>
+
+int g_image_xc = g_virt_image_width/2;
+int g_image_yc = g_virt_image_height/2;
 /*
 const double g_virt_image_width = 3000; //2688; //might want to change these if change resolution of virtual image
 const double g_virt_image_height = 2000; //1520; 
@@ -64,10 +70,19 @@ Eigen::Affine3d g_affine_virt_cam_wrt_cam;
 ros::ServiceClient *g_surface_map_service_client_ptr;
 pcl_generator::MapperSrv g_map_srv;
 
+std::vector<std::vector<double>> g_filtered_surface_map;
+
+
 
 cv::Mat g_virtual_image; //(Nu,Nv,CV_8U,cv::Scalar(0));
 cv::Mat g_src;  // need access to this; subsribe?
 sensor_msgs::ImagePtr g_image_msg_ptr;
+int g_N_X; //= srv.response.map_nx;
+int g_N_Y; // = srv.response.map_ny;
+double g_Y_RES; // = srv.response.map_y_res;
+double g_X_RES; // = srv.response.map_x_res;
+double g_X_MIN; // = srv.response.map_x_min;
+double g_Y_MIN; // = srv.response.map_y_min;
 
 //precompute how u_virt,v_virt map ont u_cam,v_cam
 //hack: assign black to corner (0,0) in physical image, and
@@ -80,48 +95,22 @@ int v_cam_mappings[g_virt_image_width][g_virt_image_height];
 bool g_got_new_image = false;
 bool g_first_time = true;
 bool g_got_transforms = false;
+bool g_got_new_map = false;
 
 int g_ans;
 
 //issue here: topics to subscribe and publish
 //HMI expects "/camera/image_rect_color" (actually, compressed version)
 //but want to pipe this through this perspective transform first
-//std::string g_output_image_topic="/camera/image_rect_color";
-std::string g_output_image_topic="/virtual_camera/image_rect_color";
-std::string g_input_image_topic="/camera_pretransformed/image_rect_color";
+std::string g_output_image_topic="/camera/image_rect_color";
+std::string g_input_image_topic="/virtual_camera/image_rect_color";
 
-//SHOULD get this from tf publication; hardcode test
-//vals from 12/30/20 calibration data w/ Stella
-//this is used to convert affine to pose;
-//then can enter pose data in launch file: roadprintz_launch/stella_camera_optical_frame_12_30_20_calib.launch
-Eigen::Affine3d eval_hardcoded_affine_cam_wrt_RBIP(void) {
-	Eigen::Affine3d test_affine_cam_wrt_RBIP;
 
-	Eigen::Vector3d trans;
-	Eigen::Matrix3d R;
-    trans<<1.44604, -0.00440006, 2.86339;//0.918912 pixels RMS reprojection error
-    R<<0.0561968, 0.995697, 0.0736899,
-    0.997359, -0.0593846, 0.0418105,
-    0.0460069, 0.0711456, -0.996403;    
-
-	test_affine_cam_wrt_RBIP.linear() = R;
-	test_affine_cam_wrt_RBIP.translation() = trans;
-        
-        //tf::StampedTransform tfCamWrtRBIP;
-        geometry_msgs::Pose poseCamWrtRBIP;
-        
-        poseCamWrtRBIP = xform_utils.transformEigenAffine3dToPose(test_affine_cam_wrt_RBIP);
-        ROS_INFO("from hardcoded cam wrt RBIP: test_affine_cam_wrt_RBIP");
-        xform_utils.printAffine(test_affine_cam_wrt_RBIP);        
-        ROS_INFO("equivalent pose: ");
-        xform_utils.printPose(poseCamWrtRBIP);
-	return test_affine_cam_wrt_RBIP;
-
-} 
 
 
 //define an ideal transform for the virtual camera;
 //may choose origin to be close to physical camera origin, so field of view is comparable
+//this fnc should be OK, since it gets its params from header file
 Eigen::Affine3d get_hardcoded_affine_virtual_cam_wrt_RBIP(void) {
 	Eigen::Affine3d hardcoded_affine_cam_wrt_RBIP;
 
@@ -148,6 +137,78 @@ Eigen::Affine3d get_hardcoded_affine_virtual_cam_wrt_RBIP(void) {
 	return hardcoded_affine_cam_wrt_RBIP;
 }
 
+int y_to_j(double y) {
+    int j = 0;
+    j = floor((y - g_Y_MIN) / g_Y_RES);
+    if (j < g_N_Y && j>-1) return j;
+    else return -1;
+}
+
+int x_to_i(double x) {
+    int i = 0;
+
+    i = floor((x - g_X_MIN) / g_X_RES);
+    if (i < g_N_X && i>-1) return i;
+    else return -1;
+}
+
+int y_to_j_round(double y) {
+    int j = 0;
+    j = round((y - g_Y_MIN) / g_Y_RES);
+    if (j < g_N_Y && j>-1) return j;
+    else return -1;
+}
+
+int x_to_i_round(double x) {
+    int i = 0;
+
+    i = round((x - g_X_MIN) / g_X_RES);
+    if (i < g_N_X && i>-1) return i;
+    else return -1;
+}
+
+double j_to_y(int j) {
+    double y = 0.0;
+    y = g_Y_MIN + j*g_Y_RES; //+Y_RES/2;
+    return y;
+}
+
+double i_to_x(int i) {
+    double x = g_X_MIN + i*g_X_RES; //+X_RES/2;
+    return x;
+}
+
+
+
+bool interpolate_z_of_xy(double x, double y, double &z) {
+    int i = x_to_i(x);
+    int j = y_to_j(y);
+    //ROS_INFO("x_to_i, y_to_j = %d, %d",i,j);
+    if ((i < 0) || (j < 0) || (i> g_N_X-2) || (j> g_N_Y-2) ) {
+        z=0; //default if cannot interpolate
+        return false; 
+    }//impossibly high z-value if ask for values out of range
+    //if (i >=g_N_X - 1) return false;
+    //if (j >= g_N_Y - 1) return false;
+    //if here, i and j can be interpolated to i+1, j+1
+    //g_unfiltered_surface_map can be upgraded to filtered: TODO
+    double z00 = g_filtered_surface_map[i][j];
+    double z10 = g_filtered_surface_map[i + 1][j];
+    double z01 = g_filtered_surface_map[i][j + 1];
+    double z11 = g_filtered_surface_map[i + 1][j + 1];
+    double dx = (x - (g_X_MIN + i * g_X_RES)) / g_X_RES;
+    double dy = (y - (g_Y_MIN + j * g_Y_RES)) / g_Y_RES;
+    //unit-square formula: z(x,y) = z00*(1-dx)*(1-dy) + z10*dx*(1-dy)+z01*(1-dx)*dy+z11*dx*dy
+    z = z00 * (1 - dx)*(1 - dy) + z10 * dx * (1 - dy) + z01 * (1 - dx) * dy + z11 * dx*dy;
+
+    //ROS_INFO("interpolator: x,y = %f, %f; i,j= %d, %d",x,y,i,j);
+    //ROS_INFO("z00, z10, z01, z11 = %f, %f, %f, %f",z00,z10,z01,z11);
+    //ROS_INFO("dx, dy = %f, %f; interpolated z = %f",dx,dy,z);
+    //return z;
+    return true;
+}
+
+
 bool valid_uv(int u,int v,int Nu,int Nv) {
   if (u<0) return false;
   if (v<0) return false;
@@ -157,21 +218,37 @@ bool valid_uv(int u,int v,int Nu,int Nv) {
 }
 
 //pre-compute the mappings between (u,v) of virtual camera and (u,v) of physical camera
-void compute_mappings(Eigen::Affine3d affine_virt_cam_wrt_cam, 
-  double cx_src,double cy_src, double fx_src, double fy_src, double vert_height, double kpix)
+//use this approach:
+
+//step through all u_virt, v_virt pixel indicies for projected image to be populated
+//compute u_cam, v_cam of input image to find RGB values to use for projected image at u_virt,v_virt
+//use these relations:
+// u_virt,v_virt--> px,py in metric;
+// pz = z_map(px,py)
+// Ocam_z = height of virtual camera for input image
+//proj_shift_factor = Ocam_z/(Ocam_z-pz); 
+// u_cam = proj_shift_factor*(u_virt - u_virt_xc) + u_virt_xc
+// v_cam = proj_shift_factor*(v_virt - v_virt_xc) + v_virt_xc
+// pz is height of LIDAR map at (x,y)
+void compute_mappings() //Eigen::Affine3d affine_virt_cam_wrt_cam, 
+  //double cx_src,double cy_src, double fx_src, double fy_src, double vert_height, double kpix)
 {
     //int u_cam_mappings[g_rect_width][g_rect_height];
     //int v_cam_mappings[g_rect_width][g_rect_height];
     double cx_virt = g_virt_image_width/2.0;
-    double cy_virt = g_virt_image_height/2.0; // found this: g_rect_height/2.0; error?
+    double cy_virt = g_virt_image_height/2.0;
     Eigen::Vector3d p_wrt_virt,p_wrt_cam;
   int u_cam,v_cam;
-  p_wrt_virt[2] = vert_height;
+  double x,y,z;
+  double proj_shift_factor;// = Ocam_z/(Ocam_z-pz);
+  //p_wrt_virt[2] = vert_height;
  for (int u_virt=0;u_virt<g_virt_image_width;u_virt++) {
   for (int v_virt=0;v_virt<g_virt_image_height;v_virt++) {
       u_cam_mappings[u_virt][v_virt] = 0; //default
       v_cam_mappings[u_virt][v_virt] = 0;
 
+      //THIS IS WHERE THE HARD WORK GOES...
+      /*
     //convert u,v to x,y in virtual frame, as projected onto ideal plane
     p_wrt_virt[0]  = (u_virt-cx_virt)/kpix;
     p_wrt_virt[1]  = (v_virt-cy_virt)/kpix;
@@ -183,14 +260,33 @@ void compute_mappings(Eigen::Affine3d affine_virt_cam_wrt_cam,
     u_cam = (int) (cx_src + fx_src*p_wrt_cam[0]/p_wrt_cam[2]);
     v_cam = (int) (cy_src + fy_src*p_wrt_cam[1]/p_wrt_cam[2]);
     //cout<<"u_cam, v_cam = "<<u_cam<<", "<<v_cam<<endl;
+    */
+      x = i_to_x(u_virt);
+      y = j_to_y(v_virt);
+      
+    //  ROS_INFO("x,y = %f, %f",x,y);
+    interpolate_z_of_xy(x,y,z);
+    proj_shift_factor = VERT_CAM_HEIGHT/(VERT_CAM_HEIGHT-z);
+    u_cam = round(proj_shift_factor*(u_virt - cx_virt) + cx_virt);
+    v_cam = round(proj_shift_factor*(v_virt - cy_virt) + cy_virt);  
+    //ROS_INFO("z, proj_shift_factor = %f,%f",z, proj_shift_factor);
+    //ROS_INFO("u_virt, u_cam, v_virt, v_cam = %d, %d, %d, %d",u_virt, u_cam, v_virt, v_cam);
+            
+    //test/DEBUG:
+    //u_cam = u_virt;
+    //v_cam = v_virt;
     
     //validity w/rt dimensions of pre-transformed image:
-    if (valid_uv(u_cam,v_cam,g_rect_width,g_rect_height)) { 
+    if (valid_uv(u_cam,v_cam,g_virt_image_width,g_virt_image_height)) { 
         u_cam_mappings[u_virt][v_virt] = u_cam;
         v_cam_mappings[u_virt][v_virt] = v_cam;
     } 
+    else {
+        ROS_WARN("map out of range: u_cam, v_cam, height,width: %d, %d, %d, %d",u_cam,v_cam,g_virt_image_height,g_virt_image_width);
+    }
   }
  }
+  ROS_INFO("compute_mappings concluded");
     
 }
 
@@ -276,27 +372,71 @@ public:
     Mat src = cv_ptr->image;
     g_src = cv_ptr->image;
 
-    if (!g_got_transforms) {
+    /*if (!g_got_transforms) {
         ROS_WARN("got image, but transforms not ready yet");
         return;
-    }
+    }*/
+    
+    //ask the surface mapper for the array z[ix][jy]:
+        //
+        ROS_INFO("Requesting map matrix");
+        
+        g_surface_map_service_client_ptr->call(g_map_srv);
+        bool response_code= g_map_srv.response.response_code;
+        ROS_INFO("service returned %d",response_code);
+        if (response_code!=pcl_generator::MapperSrvResponse::SUCCESS) {
+            
+            ROS_ERROR("failed response from mapper service");
+            g_got_new_image=false;
+            g_got_new_map=false;
+            return;
+        }
+        else { //got a  map; unpack it
+            if (g_first_time) {
+                g_N_X = g_map_srv.response.map_nx;
+                g_N_Y = g_map_srv.response.map_ny;
+                g_Y_RES = g_map_srv.response.map_y_res;
+                g_X_RES = g_map_srv.response.map_x_res;
+                g_X_MIN = g_map_srv.response.map_x_min;
+                g_Y_MIN = g_map_srv.response.map_y_min;
+
+                ROS_INFO("N_X, N_Y = %d, %d",g_N_X,g_N_Y);
+                ROS_INFO("X_MIN,Y_MIN = %f, %f",g_X_MIN,g_Y_MIN);
+                ROS_INFO("X_RES,Y_RES = %f, %f",g_X_RES,g_Y_RES);
+            }
+        
+            //convert the received vec of vecs message into a std vec of vecs 
+            int nvecs = g_map_srv.response.vec_of_vec_of_doubles.size();//vec_of_vec_of_doubles
+            ROS_INFO("vec of vecs contains %d vectors",nvecs);
+            ROS_INFO("unpacking the vec of vecs...");
+            std::vector<double> vec_of_dbls;
+            g_filtered_surface_map.clear();
+            roadprintz_msgs::VecOfDoubles vec_of_dbls_msg;
+            for (int ivec=0;ivec<nvecs;ivec++) {
+                vec_of_dbls_msg = g_map_srv.response.vec_of_vec_of_doubles[ivec];//vec_of_vec_of_doubles
+                vec_of_dbls=vec_of_dbls_msg.dbl_vec;
+                g_filtered_surface_map.push_back(vec_of_dbls);
+            }
+            ROS_INFO("received/repackaged map vec of vec of doubles: ");
+            g_got_new_map=true;
+        }
     
     if (g_first_time) {
       cout<<"first image received; cloning to transformed image"<<endl;
       g_virtual_image = g_src.clone();
       //cv::resize(img, img_dst, cv::Size(640, 480), 0, 0, cv::INTER_AREA);
-      resize(g_src,g_virtual_image,Size(g_virt_image_width,g_virt_image_height),0,0,cv::INTER_AREA);
+      //resize(g_src,g_virtual_image,Size(g_virt_image_width,g_virt_image_height),0,0,cv::INTER_AREA);
       g_first_time=false;
-      if (g_src.cols != g_rect_width) {
+      if (g_src.cols != g_virt_image_width) {
           ROS_ERROR("image is not the expected size; exiting");
           exit(0);
       }
-      if (g_src.rows != g_rect_height) {
+      if (g_src.rows != g_virt_image_height) {
           ROS_ERROR("image is not the expected size; exiting");
           exit(0);
       }      
      cout<<"input image size height, width: "<<g_src.cols<<", "<<g_src.rows<<endl;
-     cout<<"setting all pixels of virtual (perspective dewarped) image to black"<<endl;
+     cout<<"setting all pixels of RBIP-projected image to black"<<endl;
      Vec3b & color = g_virtual_image.at<Vec3b>(0,0);
         color[0] = 0;
         color[1] = 0;
@@ -319,20 +459,20 @@ public:
     //image_pub_.publish(g_virtual_image);
     image_pub_.publish(g_image_msg_ptr);
 
-    ROS_INFO("computing virtual to physical pixel mappings...");
+    ROS_INFO("computing reprojection pixel mappings...");
 
     //ugh.  maybe the virtual and real camera parameters headers should live in their own package!
     
-    compute_mappings(g_affine_virt_cam_wrt_cam,g_image_xc,g_image_yc, g_fx, g_fy, VERT_CAM_HEIGHT,KPIX);
+    compute_mappings(); //g_affine_virt_cam_wrt_cam,g_image_xc,g_image_yc); //, g_fx, g_fy, VERT_CAM_HEIGHT,KPIX);
 
     ROS_INFO("done computing mappings");    
     
       return;
     }
-    //ROS_INFO("transforming image...");
+    ROS_INFO("transforming image...");
     transform_image(g_src,g_virtual_image);
     //cout<<"done transforming image"<<endl;
-    resize(g_virtual_image, dst_smaller, Size(g_virtual_image.cols/RESCALE_FACTOR,g_virtual_image.rows/RESCALE_FACTOR));
+    //resize(g_virtual_image, dst_smaller, Size(g_virtual_image.cols/RESCALE_FACTOR,g_virtual_image.rows/RESCALE_FACTOR));
     //imshow(OPENCV_WINDOW, dst_smaller);  
 
     //cv::waitKey(3);
@@ -351,26 +491,13 @@ public:
 
 
 
-bool cam_calib_callback(camera_parameters::CamCalibRequest &request, camera_parameters::CamCalibResponse &response)
-{
-    ROS_INFO("cam_calib_data_service callback activated....");
-    ROS_INFO("responding with Amcrest (Stella) cam extrinsic calibration data");
-
-        response.i0 = 0; //no longer used
-        response.j0 = 0; //no longer used
-        response.pix_per_meter = KPIX; //reconcile this with perspective_transform node; per header file
-        //response.camera_name = ip_cam::CamCalibResponse::AMCREST_CAM; //STELLA_AMCREST; should no longer be relevant
-        response.success=true;
-        return true;
-}
-
 
 
 
 //subscribe to images;
 //convert these to virtual images w/ ideal viewpoint and republish
 int main(int argc, char** argv) {
-  ros::init(argc, argv, "perspective_transform_v2");
+  ros::init(argc, argv, "rbip_image_projector");
   ImageConverter ic;
 
 
@@ -380,7 +507,7 @@ int main(int argc, char** argv) {
  // this will receive images; use it to populate g_cam_image
  // have this fnc set g_got_new_image
   ros::NodeHandle nh;
-  
+  /* these transforms are not needed for this RBIP projection node
       tf::TransformListener tfListener;
     bool tferr = true;
     ROS_INFO("waiting for tf between RBIP frame and robot's base_link...");
@@ -432,7 +559,7 @@ int main(int argc, char** argv) {
     affine_cam_wrt_RBIP = xform_utils.transformStampedTfToEigenAffine3d(tfCamWrtRBIP);
     ROS_INFO("affine_cam_wrt_RBIP");
     xform_utils.printAffine(affine_cam_wrt_RBIP);  
-   
+   */
   
  //affine_cam_wrt_RBIP = get_hardcoded_affine_cam_wrt_sys();
  affine_virt_cam_wrt_RBIP = get_hardcoded_affine_virtual_cam_wrt_RBIP();
@@ -440,14 +567,13 @@ int main(int argc, char** argv) {
   g_got_transforms=true;
 
   //the only thing this does is informs the HMI of the value of KPIX, which is in the virtual-camera header file
-  ros::ServiceServer calib_service = nh.advertiseService("cam_calib_data_service", cam_calib_callback);
+  //ros::ServiceServer calib_service = nh.advertiseService("cam_calib_data_service", cam_calib_callback);
 
       
       
   ros::ServiceClient client = nh.serviceClient<pcl_generator::MapperSrv>("surface_map_service");
   g_surface_map_service_client_ptr = &client;
-  //test the surface mapper service:
-  
+  g_map_srv.request.request_code=pcl_generator::MapperSrvRequest::REQUEST_MAP_MATRIX;
  
  //wait for first image
  ROS_INFO("waiting for camera_image publication...");
@@ -472,7 +598,7 @@ int main(int argc, char** argv) {
    // double cx_src,double cy_src, double fx_src, double fy_src, double vert_height, double kpix)
    // image_publisher.publish(g_virtual_image)
    ros::spinOnce();
-   ros::Duration(0.5).sleep();
+   ros::Duration(0.1).sleep();
 
   }
  
