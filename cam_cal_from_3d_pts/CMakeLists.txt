@@ -25,8 +25,17 @@ target_link_libraries(cam_cal_3d
 	${catkin_LIBRARIES}
 )
 
-add_executable(test_main src/test_main.cpp)
-target_link_libraries(test_main
+add_executable(test_main_interp src/test_main_interp.cpp)
+target_link_libraries(test_main_interp
+	${OpenCV_LIBS}
+	${catkin_LIBRARIES}
+	yaml-cpp
+	
+	cam_cal_3d
+)
+
+add_executable(test_main_four src/test_main_four.cpp)
+target_link_libraries(test_main_four
 	${OpenCV_LIBS}
 	${catkin_LIBRARIES}
 	yaml-cpp

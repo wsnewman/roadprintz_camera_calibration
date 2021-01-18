@@ -317,4 +317,224 @@ namespace cal{
    		
 		return a;
 	}
+	
+	Eigen::Affine3d cam_cal_four(
+		const std::string points_3d,
+		const std::string points_uv,
+		const double fx, const double fy, const double cx, const double cy,
+		const Eigen::Affine3d & seed,
+		double & accuracy
+	){
+	
+		std::ifstream data_file;
+		std::vector<Eigen::Vector3d> vec_3d;
+		std::vector<Eigen::Vector2d> vec_uv;
+		
+		data_file.open(points_uv);
+		if(!data_file){
+			printf("\e[39mCould not find px data file \"%s\".\e[31m\n", points_uv.c_str());
+			accuracy = -1.0;
+			Eigen::Affine3d a;
+			return a;
+		}
+		int n = 0;
+		char line [255];
+		while(data_file.getline(line, 255)){
+			n++;
+			std::string line_s = std::string(line);
+			if(std::count(line_s.begin(), line_s.end(), ',') != 1){
+				printf("\e[39mBad file format. Line %d (%s).\e[31m\n", n, line);
+				accuracy = -1.0;
+				Eigen::Affine3d a;
+				return a;
+			}
+		
+			Eigen::Vector2d pixel_location;
+		
+			sscanf(line, "%lf, %lf",
+				&pixel_location.x(), &pixel_location.y()
+			);
+			vec_uv.push_back(pixel_location);
+		}
+		data_file.close();
+		#ifdef VERBOSE
+		printf("\nRead in \e[1m%d\e[0m entries from %s.\n\n", n, points_uv.c_str());
+		#endif
+		
+		//Sort entries in groups of 4
+		if(vec_uv.size() % 4 != 0){
+			printf("\e[39mThe pixel locations are not in groups of 4. \"%s\".\e[31m\n", points_3d.c_str());
+			accuracy = -1.0;
+			Eigen::Affine3d a;
+			return a;
+		}
+		for(int i = 0; i < vec_uv.size(); i+=4){
+			Eigen::Vector2d tl, tr, bl, br;
+			std::vector<Eigen::Vector2d> candidates(4);
+			for(int j = 0; j < 4; j++){
+				candidates[j] = vec_uv[i+j];
+			}
+			
+			int toppest_id = 0;
+			int bottomest_id = 0;
+			
+			for(int j = 0; j < 4; j++){
+				if(candidates[j].y() < candidates[toppest_id].y()){
+					toppest_id = j;
+				}
+				if(candidates[j].y() > candidates[bottomest_id].y()){
+					bottomest_id = j;
+				}
+			}
+			
+			int second_toppest_id = 0;
+			int second_bottomest_id = 0;
+			for(int j = 0; j < 4; j++){
+				if(candidates[j].y() < candidates[second_toppest_id].y() && j != toppest_id){
+					second_toppest_id = j;
+				}
+				if(candidates[j].y() > candidates[second_bottomest_id].y() && j != bottomest_id){
+					second_bottomest_id = j;
+				}
+			}
+			
+			if(candidates[toppest_id].x() > candidates[second_toppest_id].x()){
+				tl = candidates[second_toppest_id];
+				tr = candidates[toppest_id];
+			} else{
+				tl = candidates[toppest_id];
+				tr = candidates[second_toppest_id];
+			}
+			
+			if(candidates[bottomest_id].x() > candidates[second_bottomest_id].x()){
+				bl = candidates[second_bottomest_id];
+				br = candidates[bottomest_id];
+			} else{
+				bl = candidates[bottomest_id];
+				br = candidates[second_bottomest_id];
+			}
+			
+			vec_uv[i+0] = tl;
+			vec_uv[i+1] = bl;
+			vec_uv[i+2] = br;
+			vec_uv[i+3] = tr;
+			/*vec_uv[i+0] = (tl+tr+bl+br)/4.0;
+			vec_uv[i+1] = (tl+tr+bl+br)/4.0;
+			vec_uv[i+2] = (tl+tr+bl+br)/4.0;
+			vec_uv[i+3] = (tl+tr+bl+br)/4.0;*/
+		}
+		
+		
+		data_file.open(points_3d);
+		if(!data_file){
+			printf("\e[39mCould not find 3d data file \"%s\".\e[31m\n", points_3d.c_str());
+			accuracy = -1.0;
+			Eigen::Affine3d a;
+			return a;
+		}
+		while(data_file.getline(line, 255)){
+			std::string line_s = std::string(line);
+			if(std::count(line_s.begin(), line_s.end(), ',') != 1){
+				printf("\e[39mBad file format. Line %d (%s).\e[31m\n", n, line);
+				accuracy = -1.0;
+				Eigen::Affine3d a;
+				return a;
+			}
+		
+			Eigen::Vector3d metric_location;
+		
+			sscanf(line, "%lf, %lf",
+				&metric_location.x(), &metric_location.y()
+			);
+			metric_location.z() = 0;
+			vec_3d.push_back(metric_location);
+		}
+		data_file.close();
+		#ifdef VERBOSE
+		printf("\nRead in \e[1m%d\e[0m entries from %s.\n\n", n, points_3d.c_str());
+		#endif
+		
+		/*for(int i = 0; i < vec_3d.size(); i+=4){
+			Eigen::Vector3d avg_3d = (vec_3d[i+0] + vec_3d[i+1] + vec_3d[i+2] + vec_3d[i+3])/4.0;
+			vec_3d[i+0] = avg_3d;
+			vec_3d[i+1] = avg_3d;
+			vec_3d[i+2] = avg_3d;
+			vec_3d[i+3] = avg_3d;
+		}*/
+		
+		if(vec_3d.size() != n){
+			printf("\e[39mMismatch between calculated points (%lu) and detected points (%d).\e[31m\n", vec_3d.size(), n);
+			accuracy = -1.0;
+			Eigen::Affine3d a;
+			return a;
+		}
+		
+		
+		Eigen::Vector3d ea = seed.rotation().eulerAngles(2, 1, 0);
+   	
+		double t_array [3] = {
+			seed.translation().x(),
+			seed.translation().y(),
+			seed.translation().z()
+		};
+		double r_array [3] = {
+			cc_utils::rtod(ea.z()),
+			cc_utils::rtod(ea.y()),
+			cc_utils::rtod(ea.x())
+		};
+		
+		/*n=8;
+		std::vector<Eigen::Vector2d> tmp_uv;
+		std::vector<Eigen::Vector3d> tmp_3d;
+		for(int i = 0; i < n; i++){
+			tmp_uv.push_back(vec_uv[i]);
+			tmp_3d.push_back(vec_3d[i]);
+		}
+		vec_uv = tmp_uv;
+		vec_3d = tmp_3d;*/
+		
+		
+		//Build the optimization problem
+		ceres::Problem problem;
+		ceres::Solver::Options options;
+		
+		cc_utils::init_visualization(2688, 1520, vec_uv, options);
+		
+		
+		
+		for(int i = 0; i < n; i++){
+			double pixels_as_array [2] = { vec_uv[i].x(), vec_uv[i].y() };
+			double target_as_array [3] = { vec_3d[i].x(), vec_3d[i].y(), vec_3d[i].z() };
+		
+			ceres::CostFunction *cost_function = CalibrationEntry::Create(
+				pixels_as_array,
+				target_as_array,
+				fx, fy, cx, cy
+			);
+		
+		
+			problem.AddResidualBlock(cost_function, NULL,
+				t_array, r_array
+			);
+		}
+		cc_utils::bound_rotation(problem, r_array);
+		
+		#ifdef VERBOSE
+		options.minimizer_progress_to_stdout = true;
+		#endif
+		options.linear_solver_type = ceres::DENSE_SCHUR;
+		options.max_num_iterations = 1000;
+		ceres::Solver::Summary summary;
+    		ceres::Solve(options, &problem, &summary);
+	
+		Eigen::Affine3d a;
+		a =
+			Eigen::AngleAxisd(cc_utils::dtor(r_array[2]), Eigen::Vector3d::UnitZ()) *
+   			Eigen::AngleAxisd(cc_utils::dtor(r_array[1]), Eigen::Vector3d::UnitY()) *
+   			Eigen::AngleAxisd(cc_utils::dtor(r_array[0]), Eigen::Vector3d::UnitX());
+   		a.translation() = Eigen::Vector3d(t_array[0], t_array[1], t_array[2]);
+   		
+   		accuracy = cc_utils::rms();
+		return a;
+	}
 }
