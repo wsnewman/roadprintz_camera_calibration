@@ -39,10 +39,10 @@ int main(int argc, char ** argv){
 	Eigen::Affine3d init_affine;
 	//Taken from simulation camera pose w.r.t. system base frame.
 	init_affine.matrix() <<
-/*	 -0.0565683,   -0.998263,   0.0164475,    -1.00925,
+	 -0.0565683,   -0.998263,   0.0164475,    -1.00925,
 	   -0.99837,   0.0566835,  0.00662688,       1.038,
 	-0.00754767,  -0.0160458,   -0.999843,    -2.80553,
-	          0,           0,           0,           1*/
+	          0,           0,           0,           1
 	;
 	
 	
