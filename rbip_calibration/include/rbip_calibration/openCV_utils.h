@@ -26,7 +26,10 @@ bool g_preferred_orientation=false;
 int g_n_keypts_wide=8; //default to small poster
 int g_n_keypts_high=6; //default
 
-double g_x_pix_upper_left,g_y_pix_upper_left;
+int index_key_point = 27; 
+
+double g_x_pix_upper_left,g_y_pix_upper_left; //to choose "upper-left" point in poster
+double g_x_pix_keypt,g_y_pix_keypt; //generalize: use index_key_point to select (u,v) of interest
 
 
 //default topics; can change these in application BEFORE instantiating 
@@ -36,6 +39,7 @@ std::string g_input_image_topic="/camera/image_rect_color";
 class OpenCvUtils {
 public:
     OpenCvUtils() {}; //constructor;
+    OpenCvUtils(string image_topic); //constructor;
     //call next fnc to find key points of a checkerboard
     //specify how many key points: n_keypts_wide x n_keypts_high interior corners among squares
     // this is the number of intersections, not the number of squares

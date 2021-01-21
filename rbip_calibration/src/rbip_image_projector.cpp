@@ -97,6 +97,8 @@ bool g_first_time = true;
 bool g_got_transforms = false;
 bool g_got_new_map = false;
 
+bool g_verbose_interp = false;
+
 int g_ans;
 
 //issue here: topics to subscribe and publish
@@ -137,6 +139,8 @@ Eigen::Affine3d get_hardcoded_affine_virtual_cam_wrt_RBIP(void) {
 	return hardcoded_affine_cam_wrt_RBIP;
 }
 
+//convert (x,y) metric to indices of height-map table
+//these are NOT the same as pixels!
 int y_to_j(double y) {
     int j = 0;
     j = floor((y - g_Y_MIN) / g_Y_RES);
@@ -167,23 +171,33 @@ int x_to_i_round(double x) {
     else return -1;
 }
 
-double j_to_y(int j) {
+//convert pixels to meters, based on virtual image params
+//image x corresponds to RBIP y
+double ux_to_RBIP_y(int ux) {
     double y = 0.0;
-    y = g_Y_MIN + j*g_Y_RES; //+Y_RES/2;
+    y = ((double) (ux-g_image_xc))/KPIX; //*g_Y_RES; //+Y_RES/2;
+        if (g_verbose_interp) {
+        ROS_INFO("ux = %d; y= %f;  KPIX= %f",ux,y,KPIX);               
+    }
     return y;
 }
 
-double i_to_x(int i) {
-    double x = g_X_MIN + i*g_X_RES; //+X_RES/2;
+//image y corresponds to RBIP x
+double vy_to_RBIP_x(int vy) {
+    double x = VIRT_CAM_X_OFFSET + ((double) (vy-g_image_yc))/KPIX; //+X_RES/2;
+    if (g_verbose_interp) {
+        ROS_INFO("vy = %d; x= %f; VIRT_CAM_X_OFFSET = %f, KPIX= %f",vy,x,VIRT_CAM_X_OFFSET,KPIX);
+                
+    }
     return x;
 }
 
 
 
 bool interpolate_z_of_xy(double x, double y, double &z) {
-    int i = x_to_i(x);
-    int j = y_to_j(y);
-    //ROS_INFO("x_to_i, y_to_j = %d, %d",i,j);
+    int i = x_to_i_round(x);
+    int j = y_to_j_round(y);
+    if (g_verbose_interp)  ROS_INFO("x_to_i, y_to_j = %d, %d",i,j);
     if ((i < 0) || (j < 0) || (i> g_N_X-2) || (j> g_N_Y-2) ) {
         z=0; //default if cannot interpolate
         return false; 
@@ -201,9 +215,9 @@ bool interpolate_z_of_xy(double x, double y, double &z) {
     //unit-square formula: z(x,y) = z00*(1-dx)*(1-dy) + z10*dx*(1-dy)+z01*(1-dx)*dy+z11*dx*dy
     z = z00 * (1 - dx)*(1 - dy) + z10 * dx * (1 - dy) + z01 * (1 - dx) * dy + z11 * dx*dy;
 
-    //ROS_INFO("interpolator: x,y = %f, %f; i,j= %d, %d",x,y,i,j);
-    //ROS_INFO("z00, z10, z01, z11 = %f, %f, %f, %f",z00,z10,z01,z11);
-    //ROS_INFO("dx, dy = %f, %f; interpolated z = %f",dx,dy,z);
+    if (g_verbose_interp)ROS_INFO("interpolator: x,y = %f, %f; i,j= %d, %d",x,y,i,j);
+    if (g_verbose_interp)ROS_INFO("z00, z10, z01, z11 = %f, %f, %f, %f",z00,z10,z01,z11);
+    if (g_verbose_interp)ROS_INFO("dx, dy = %f, %f; interpolated z = %f",dx,dy,z);
     //return z;
     return true;
 }
@@ -242,6 +256,7 @@ void compute_mappings() //Eigen::Affine3d affine_virt_cam_wrt_cam,
   double x,y,z;
   double proj_shift_factor;// = Ocam_z/(Ocam_z-pz);
   //p_wrt_virt[2] = vert_height;
+  //reprojected image has same dimensions as virtual image
  for (int u_virt=0;u_virt<g_virt_image_width;u_virt++) {
   for (int v_virt=0;v_virt<g_virt_image_height;v_virt++) {
       u_cam_mappings[u_virt][v_virt] = 0; //default
@@ -261,20 +276,31 @@ void compute_mappings() //Eigen::Affine3d affine_virt_cam_wrt_cam,
     v_cam = (int) (cy_src + fy_src*p_wrt_cam[1]/p_wrt_cam[2]);
     //cout<<"u_cam, v_cam = "<<u_cam<<", "<<v_cam<<endl;
     */
-      x = i_to_x(u_virt);
-      y = j_to_y(v_virt);
+      y = ux_to_RBIP_y(u_virt);
+      x = vy_to_RBIP_x(v_virt);
       
     //  ROS_INFO("x,y = %f, %f",x,y);
-    interpolate_z_of_xy(x,y,z);
+    interpolate_z_of_xy(x,y,z);  //z should contain height of pt at (x,y)
     proj_shift_factor = VERT_CAM_HEIGHT/(VERT_CAM_HEIGHT-z);
     u_cam = round(proj_shift_factor*(u_virt - cx_virt) + cx_virt);
     v_cam = round(proj_shift_factor*(v_virt - cy_virt) + cy_virt);  
-    //ROS_INFO("z, proj_shift_factor = %f,%f",z, proj_shift_factor);
-    //ROS_INFO("u_virt, u_cam, v_virt, v_cam = %d, %d, %d, %d",u_virt, u_cam, v_virt, v_cam);
+    
+    //debug: display focus regions:
+    if ((u_virt>2800)&&(u_virt<2810)&&(v_virt>1800)&&(v_virt<1810)) {
+        g_verbose_interp=true;
+        y = ux_to_RBIP_y(u_virt); //y, in RBIP coords
+        x = vy_to_RBIP_x(v_virt); //x, in RBIP coords
+        interpolate_z_of_xy(x,y,z);
+        g_verbose_interp=false;
+        ROS_INFO("x,y,z, proj_shift_factor = %f, %f, %f,%f",x,y,z, proj_shift_factor);
+        ROS_INFO("u_virt, u_cam, v_virt, v_cam = %d, %d, %d, %d",u_virt, u_cam, v_virt, v_cam);        
+    }
+    /*
+    if (z>0.1) {
+    ROS_INFO("z, proj_shift_factor = %f,%f",z, proj_shift_factor);
+    ROS_INFO("u_virt, u_cam, v_virt, v_cam = %d, %d, %d, %d",u_virt, u_cam, v_virt, v_cam);
             
-    //test/DEBUG:
-    //u_cam = u_virt;
-    //v_cam = v_virt;
+    }*/
     
     //validity w/rt dimensions of pre-transformed image:
     if (valid_uv(u_cam,v_cam,g_virt_image_width,g_virt_image_height)) { 
@@ -282,7 +308,7 @@ void compute_mappings() //Eigen::Affine3d affine_virt_cam_wrt_cam,
         v_cam_mappings[u_virt][v_virt] = v_cam;
     } 
     else {
-        ROS_WARN("map out of range: u_cam, v_cam, height,width: %d, %d, %d, %d",u_cam,v_cam,g_virt_image_height,g_virt_image_width);
+     //   ROS_WARN("map out of range: u_cam, v_cam, u_virt, v_virt, height,width: %d %d %d, %d, %d, %d",u_cam,v_cam,u_virt,v_virt,g_virt_image_height,g_virt_image_width);
     }
   }
  }
@@ -403,6 +429,8 @@ public:
                 ROS_INFO("N_X, N_Y = %d, %d",g_N_X,g_N_Y);
                 ROS_INFO("X_MIN,Y_MIN = %f, %f",g_X_MIN,g_Y_MIN);
                 ROS_INFO("X_RES,Y_RES = %f, %f",g_X_RES,g_Y_RES);
+                //cout<<"enter 1: ";
+                //cin>>g_ans;
             }
         
             //convert the received vec of vecs message into a std vec of vecs 
@@ -459,16 +487,19 @@ public:
     //image_pub_.publish(g_virtual_image);
     image_pub_.publish(g_image_msg_ptr);
 
+   
+    
+      return;
+    }
+        
     ROS_INFO("computing reprojection pixel mappings...");
 
     //ugh.  maybe the virtual and real camera parameters headers should live in their own package!
     
     compute_mappings(); //g_affine_virt_cam_wrt_cam,g_image_xc,g_image_yc); //, g_fx, g_fy, VERT_CAM_HEIGHT,KPIX);
 
-    ROS_INFO("done computing mappings");    
+    ROS_INFO("done computing mappings"); 
     
-      return;
-    }
     ROS_INFO("transforming image...");
     transform_image(g_src,g_virtual_image);
     //cout<<"done transforming image"<<endl;

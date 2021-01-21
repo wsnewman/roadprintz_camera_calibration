@@ -1,0 +1,97 @@
+progress 1/16/21:
+
+find_poster_v2.cpp:
+  imports a VIRTUAL image;
+  finds a checkerboard, 18x8
+  creates an ideal grid at square size KPIX*SQUARE_SIZE_METRIC
+  finds optimal fit of this ideal grid to checkerboard pixels
+  writes out file: fname_gridpoints.csv;  These are ideal points, spaced at defined square dimensions,
+    optimal offset and rotation to minimize squared-error w/rt image feature points from find Chessboard
+
+FROM LIDAR SCAN: 
+rosrun pcl_utils make_image_from_cloud_v3
+
+find_poster_in_lidar_image.cpp:
+rosrun rbip_calibration find_poster_in_lidar_image
+
+ had to reduce image resolution by 4x to get findCheckerboard to work;
+ also, subPixel() did not work
+ force fit to an ideal grid (in lower res):
+
+[ WARN] [1610844250.824583436]: corresponding rotation angle = 0.785398
+[ WARN] [1610844250.824601161]: and offset: 482.536 343.971
+rms_err of fit = 1.490033
+
+image_from_pointcloud_rvrs.png:
+
+[ WARN] [1610844616.910932900]: corresponding rotation angle = 0.785398
+[ WARN] [1610844616.910951507]: and offset: 483.229 343.972
+
+rms_err of fit = 1.322157
+
+NOTE: v-values are remarkably close, fwd and rvrs
+rotation angles are also in agreement (surprisingly precisely)
+HOWEVER, these could both be off by some rotation, since scans are from bumper, aftwards
+(reconsidering: e.g., consider what line would correspond to single LIDAR scan message.  If forearm is sweeping in "forward" direction,
+ then this line would be tilted such that y-values closer to bumper are more positive.  Similar line in reverse sweep direction
+ should be tilted equal and opposite.  Therefore, correct poster rotation would be average of fwd and rvrs.
+ But fwd and rvrs sweeps seem to have same poster rotation angle)
+
+u-values differ by 0.693 coarse pixels, which is about 5mm off
+
+outputs: fname_gridpoints.csv
+compare to: poster_virtual_gridpoints.csv
+
+e.g.:
+poster_virtual_gridpoints.csv
+image_from_pointcloud_fwd_gridpoints.csv
+image_from_pointcloud_rvrs_gridpoints.csv
+
+have Octave script: image_vs_lidar.m
+
+result: LIDAR grid points are quite close to image grid points:
+rms_err =  4.9650 with no corrections
+
+diff_lidar_pts_centroid_fwd_rvrs =  -2.7724306  -0.0021597
+centroid_diff_fwd_lidar_vs_image = 0.53076  -4.08326
+centroid_diff_rvrs_lidar_vs_image = 3.3032  -4.0811
+
+theta_best =  0.0082000  //had to rotate fwd sweep grid points by this much to get min err
+rms_err_min =  0.012336
+
+theta_best_rvrs =  0.0097000 //for rvrs sweep, this was the best angle
+rms_err_rvrs =  0.0078701
+dtheta =  0.0015000   //fwd vs rvrs rotation diff
+
+CONCLUSIONS:
+ do ideal grid fit to virtual image
+ do ideal grid fit to lidar-scan image
+these are pretty close
+ rms_err =  4.9650 pixels with no corrections
+centroid of fwd vs rvrs sweep is: diff_lidar_pts_centroid_fwd_rvrs =  -2.7724306  -0.0021597
+  --> about 3 pixels in "u" direction (consistent w/ sweep latency influence)
+ALSO,
+  centroid_diff_fwd_lidar_vs_image = 0.53076  -4.08326
+ so there is a 4-pixel offset in the v direction (RBIP x direction)
+DON'T KNOW WHERE THIS CAME FROME; LIDAR mount angle off by this much yet???
+
+TODO:
+  integrate these into automated calibration process?
+   (spell out pipeline)
+  may need to iterate to re-transform imperfect virtual data into improved virtual data
+   (nominal transform correction); this is necessary to get correct perspective corrections for better grid fits
+  WANT to do this as postprocess
+
+process:
+  *place poster
+  *perform automated scan and snapshot
+  *save rectified image and scan
+  *try to find checkerboard in image and in scan (converted to image)
+  *note if successful
+  *move poster and repeat
+stop after N successful poster placements
+
+***may want to put in a manual rotation correction for LIDAR sweeps
+
+
+

@@ -1,5 +1,6 @@
 //program to find RoadPrintz checkerboard poster from image
 //SPECIALIZED for 18 keypoints x 8 keypoints
+//added fit for fixed grid to found corner points
 
 
 #include <ros/ros.h>
@@ -8,10 +9,21 @@
 #include "opencv2/calib3d.hpp"
 #include <iostream>
 #include <fstream>
+#include <camera_parameters/virtual_cam_params.h> //need this for KPIX value
+
+#include <Eigen/Eigen>
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
 
 
+//static const std::string OPENCV_WINDOW = "ImageWindow";
 using namespace cv;
 using namespace std;
+using namespace Eigen;
+
+
+static double SQUARE_SIZE_METRIC=0.1007; //set known size of squares in poster
+
 
 //check ordering of key points
 //nominal pose has poster oriented horizontal with first row of corner points foreward and ordered port-to-starboard
@@ -184,7 +196,177 @@ bool extract_and_order_corner_pts(vector<Point2f> corners, vector<Point2f> &orde
     return true;
 }
 
+//sum of lengths of centered points is useful for scaling
+double sum_norms(vector<Eigen::Vector2d>pts) {
+    int npts = pts.size();
+    //compute the sum of norms of centered pts
+    double sum_of_norms=0;
+    for (int i=0;i<npts;i++) {
+        sum_of_norms+=pts[i].norm();
+    }   
+    return sum_of_norms;
+} 
+//populate ideal_grid_pts w/ sequence of poster points
+//start w/ pts from upper-left, and raster down, assuming portrait mode
+//create grid that has centroid at (0,0)
+//this grid is scaled w/ KPIX from virtual camera params and known poster square size
+void make_ideal_grid(vector<Eigen::Vector2d> &ideal_grid_pts,double &sum_of_norms) {
+    ideal_grid_pts.clear();
+    double sum_uvals =0;
+    double sum_vvals =0;
+    Eigen::Vector2d pt;
+    for (int col=0;col<8;col++) {
+        double u = -col*KPIX*SQUARE_SIZE_METRIC;
+        pt[0]=u;
+        for (int row=0;row<18;row++) {
+            double v = row*KPIX*SQUARE_SIZE_METRIC;
+            pt[1]=v;
+            ideal_grid_pts.push_back(pt);
+            sum_uvals+=u;
+            sum_vvals+=v;
+        }
+    }  
+    int npts = ideal_grid_pts.size();
+    double u_mean = sum_uvals/npts;
+    double v_mean = sum_vvals/npts;
+    for (int i=0;i<npts;i++) {
+        pt = ideal_grid_pts[i];
+        pt[0]-= u_mean;
+        pt[1]-= v_mean;
+        ideal_grid_pts[i]=pt;
+    }
+    //compute the sum of norms of centered pts
+    sum_of_norms=sum_norms(ideal_grid_pts);
 
+}
+
+//convert from OpenCV type to Eigen type
+void cv_corners_to_eigen(vector<Point2f> corners, vector<Eigen::Vector2d> &eigen_pts) {
+    eigen_pts.clear();
+    Eigen::Vector2d pt;
+    int npts = corners.size();
+    for (int i=0;i<npts;i++) {
+        pt[0] = corners[i].x;
+        pt[1] = corners[i].y;
+        eigen_pts.push_back(pt);
+    }
+}
+
+Eigen::Vector2d find_centroid(vector<Eigen::Vector2d> eigen_pts) {
+    int npts = eigen_pts.size();
+    double x_sum=0.0;
+    double y_sum=0.0;
+    for (int i=0;i<npts;i++) {
+        x_sum+=(eigen_pts[i])[0];
+        y_sum+=(eigen_pts[i])[1];
+    }
+    Eigen::Vector2d centroid;
+    centroid[0]=x_sum/npts;
+    centroid[1]=y_sum/npts;
+    return centroid;
+}
+
+void subtract_centroid(vector<Eigen::Vector2d> eigen_pts,vector<Eigen::Vector2d> &eigen_pts_shifted) {
+    int npts = eigen_pts.size();
+    eigen_pts_shifted.clear();
+    
+    Eigen::Vector2d centroid,pt;
+    centroid = find_centroid(eigen_pts);
+    for (int i=0;i<npts;i++) {
+        pt = eigen_pts[i];
+        pt-=centroid;
+        eigen_pts_shifted.push_back(pt);
+    }
+}
+Eigen::MatrixXd convert_vec_of_pts_to_MatrixXd(vector<Eigen::Vector2d> pts_vec) {
+    int npts = pts_vec.size();
+    MatrixXd m(2,npts);  //or m.resize(2,npts);
+    for (int i=0;i<npts;i++) {
+        m.col(i) = pts_vec[i];
+    }
+    return m;
+}
+
+//2-D points are put in matrices as columns of points
+double mat_pts_err(Eigen::MatrixXd ideal_grid_mat_rot,Eigen::MatrixXd feature_pts_shifted_mat){
+    double rms_err=0;
+    int npts = ideal_grid_mat_rot.cols();
+    int feature_npts = feature_pts_shifted_mat.cols();
+    ROS_INFO("npts of grid= %d; npts of features = %d",npts,feature_npts);
+    Eigen::MatrixXd pts_diff_mat = ideal_grid_mat_rot-feature_pts_shifted_mat;
+    //int npts = pts_diff_mat.cols();
+    Eigen::Matrix2d sqd_err_mat = pts_diff_mat*pts_diff_mat.transpose();
+    cout<<"sqd_err_mat: "<<endl<<sqd_err_mat<<endl;
+    rms_err = sqrt((sqd_err_mat(0,0)+sqd_err_mat(1,1))/npts);
+    return rms_err;
+}
+
+   
+double find_grid_fit(vector<Eigen::Vector2d>image_feature_pts,vector<Eigen::Vector2d>ideal_grid_pts,vector<Eigen::Vector2d> &fit_grid_pts) {
+    Eigen::Vector2d centroid_grid,centroid_features, test_centroid_features;
+    vector<Eigen::Vector2d> feature_pts_shifted;
+    centroid_grid = find_centroid(ideal_grid_pts);
+    centroid_features = find_centroid(image_feature_pts);
+    ROS_INFO_STREAM("centroid_grid: "<<centroid_grid.transpose()<<endl);
+    ROS_INFO_STREAM("centroid_features: "<<centroid_features.transpose()<<endl);
+    subtract_centroid(image_feature_pts,feature_pts_shifted);
+    test_centroid_features = find_centroid(feature_pts_shifted); //TEST: should result in zeros
+    ROS_INFO_STREAM("centroid_features after offset computation: "<<test_centroid_features.transpose()<<endl);
+    double sum_norms_features = sum_norms(feature_pts_shifted);
+    double sum_norms_template = sum_norms(ideal_grid_pts);
+    double scale = sum_norms_features/sum_norms_template;
+    ROS_INFO("sum_norms_features = %f; sum_norms_template = %f; ratio = %f",sum_norms_features,sum_norms_template,scale);
+    
+       // get rotation
+    Eigen::MatrixXd ideal_grid_mat,feature_pts_shifted_mat;
+    ideal_grid_mat = convert_vec_of_pts_to_MatrixXd(ideal_grid_pts);
+    feature_pts_shifted_mat = convert_vec_of_pts_to_MatrixXd(feature_pts_shifted);
+    auto covMat = ideal_grid_mat * feature_pts_shifted_mat.transpose();
+    cout<<"covMat"<<endl<<covMat<<endl;
+    auto svd = covMat.jacobiSvd(Eigen::ComputeFullU | Eigen::ComputeFullV);
+    auto rot = svd.matrixV() * svd.matrixU().transpose(); 
+    cout<<"rot = "<<endl<<rot<<endl;
+    
+    //double theta_z=0;
+    Eigen::Matrix2d Rotz = rot; //renaming rotation matrix from above
+    //Vector3d v(1,2,3);
+    //Eigen::Vector2d col1(cos(theta_z),-sin(theta_z));
+    //Eigen::Vector2d col2(sin(theta_z),cos(theta_z));
+
+    //Rotz.col(0) = col1; //=cos(rot);
+    //Rotz.col(1) = col2; //=cos(rot);
+
+    Eigen::MatrixXd ideal_grid_mat_rot;
+    cout<<"rotating ideal grid: "<<endl;
+    ideal_grid_mat_rot=Rotz*ideal_grid_mat;
+    cout<<"rotated ideal grid; calling mat_pts_err... "<<endl;
+    
+    double rms_err = mat_pts_err(ideal_grid_mat_rot,feature_pts_shifted_mat);
+    ROS_INFO("rms_err of fit = %f",rms_err);
+    double rms_err_scaled = mat_pts_err(ideal_grid_mat_rot*scale,feature_pts_shifted_mat);
+    ROS_INFO("rms_err of fit for scaled grid= %f",rms_err_scaled);
+    
+    //although scaled grid can have lower RMS error, coerce it to be known dimensions, to match w/ LIDAR pts
+    
+    //populate vector<Eigen::Vector2d> &fit_grid_pts
+    fit_grid_pts.clear();
+    int npts = ideal_grid_pts.size();
+    Eigen::Vector2d pt;
+    for (int i=0;i<npts;i++) {
+        pt = ideal_grid_mat_rot.col(i);
+        pt = pt+centroid_features;
+        fit_grid_pts.push_back(pt);
+    }
+    
+    //test the resulting best-fit grid pts:
+    Eigen::MatrixXd fit_grid_mat,feature_pts_mat;
+    fit_grid_mat = convert_vec_of_pts_to_MatrixXd(fit_grid_pts);
+    feature_pts_mat = convert_vec_of_pts_to_MatrixXd(image_feature_pts);
+    
+    double test_err = mat_pts_err(fit_grid_mat,feature_pts_mat);
+    ROS_INFO("test of shifted grid pts: fit err = %f",test_err);
+    return rms_err; //-1; //rms_err<0--> failure
+}
 
 int main(int argc, char** argv) {
     ros::init(argc, argv, "find_poster"); //name this node
@@ -226,25 +408,58 @@ int main(int argc, char** argv) {
       cout<<"did not find poster"<<endl;
       return 1;
     } 
-
+    n_corners = corners.size();
+    cout<<"found "<<n_corners<<" corners"<<endl;
+    
+    /* having trouble with subpix fnc...don't know why; used to work
     cout<<"calling cornerSubPix"<<endl;
     cornerSubPix(src_gray, corners, Size(11, 11), Size(-1, -1),
                      TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
+    */
     
-    ofstream keypoints_file,corners_file;
+    vector<Eigen::Vector2d> ideal_grid_pts,image_feature_pts,fit_grid_pts;
+    //maybe ideal gridpoints does not need to be created for different rasters of image pts;
+    //start w/ pts from upper-left, and raster down, assuming portrait mode
+    // hopefully, ideal rotation will discover large rotations, if necessary
+    double sum_norms;
+    make_ideal_grid(ideal_grid_pts,sum_norms);
+    ROS_INFO("ideal grid sum of norms = %f",sum_norms);
+    //convert image feature points from OpenCV type to Eigen type
+    cv_corners_to_eigen(corners, image_feature_pts);
+    double rms_err = find_grid_fit(image_feature_pts,ideal_grid_pts,fit_grid_pts);
+    if (rms_err<0) {
+        ROS_WARN("COULD NOT FIT GRID POINTS TO POSTER FEATURES");
+        return 1;
+    }
+    ROS_INFO("fit ideal grid to image features w/ rms_err = %f",rms_err);
+    
+    
+    ofstream keypoints_file,corners_file,gridpts_file;
     string corners_filename =fname_root+"_corners.csv";
     string keypoints_filename =fname_root+"_keypoints.csv";
+    string grid_filename =fname_root+"_gridpoints.csv";
     
     //keypoints_filename
     
         keypoints_file.open(keypoints_filename.c_str(), ios::out | ios::trunc);
         
     for (int i=0;i<n_corners;i++) {
-            cout<<"subpix corner: "<<corners[i].x<<", "<<corners[i].y<<endl;
+            cout<<"chessboard corner: "<<corners[i].x<<", "<<corners[i].y<<endl;
                    
             keypoints_file << corners[i].x<<", "<<corners[i].y<<endl;          
         }
         keypoints_file.close();   
+    //save and display template points after min-err fit:    
+        gridpts_file.open(grid_filename.c_str(), ios::out | ios::trunc);
+        int n_gridpts = fit_grid_pts.size();
+        Eigen::Vector2d grid_pt;
+    for (int i=0;i<n_gridpts;i++) {
+            grid_pt = fit_grid_pts[i];
+            cout<<"template corner: "<<grid_pt[0]<<", "<<grid_pt[1]<<endl;
+                   
+            gridpts_file << grid_pt[0]<<", "<<grid_pt[1]<<endl;          
+        }
+        gridpts_file.close();        
         
    //find the 4 corners and save them in the specific order: fore_port,aft_port,aft_starboard,fore_starboard
     corners_file.open(corners_filename.c_str(), ios::out | ios::trunc);
