@@ -19,7 +19,7 @@ Mat g_src;
 Mat g_copy_of_image,g_copy_of_image_markup;
 
 
-bool g_got_new_image=false;
+bool g_got_new_image=true; //this will supress attempt to find poster on start-up
 bool g_found_poster=false;
 bool g_preferred_orientation=false; 
 //not thrilled about communicating values as follows via global vars...ugh

@@ -286,6 +286,7 @@ void compute_mappings() //Eigen::Affine3d affine_virt_cam_wrt_cam,
     v_cam = round(proj_shift_factor*(v_virt - cy_virt) + cy_virt);  
     
     //debug: display focus regions:
+    /*
     if ((u_virt>2800)&&(u_virt<2810)&&(v_virt>1800)&&(v_virt<1810)) {
         g_verbose_interp=true;
         y = ux_to_RBIP_y(u_virt); //y, in RBIP coords
@@ -294,7 +295,7 @@ void compute_mappings() //Eigen::Affine3d affine_virt_cam_wrt_cam,
         g_verbose_interp=false;
         ROS_INFO("x,y,z, proj_shift_factor = %f, %f, %f,%f",x,y,z, proj_shift_factor);
         ROS_INFO("u_virt, u_cam, v_virt, v_cam = %d, %d, %d, %d",u_virt, u_cam, v_virt, v_cam);        
-    }
+    }*/
     /*
     if (z>0.1) {
     ROS_INFO("z, proj_shift_factor = %f,%f",z, proj_shift_factor);
@@ -492,15 +493,15 @@ public:
       return;
     }
         
-    ROS_INFO("computing reprojection pixel mappings...");
+    //ROS_INFO("computing reprojection pixel mappings...");
 
     //ugh.  maybe the virtual and real camera parameters headers should live in their own package!
     
     compute_mappings(); //g_affine_virt_cam_wrt_cam,g_image_xc,g_image_yc); //, g_fx, g_fy, VERT_CAM_HEIGHT,KPIX);
 
-    ROS_INFO("done computing mappings"); 
+    //ROS_INFO("done computing mappings"); 
     
-    ROS_INFO("transforming image...");
+    //ROS_INFO("transforming image...");
     transform_image(g_src,g_virtual_image);
     //cout<<"done transforming image"<<endl;
     //resize(g_virtual_image, dst_smaller, Size(g_virtual_image.cols/RESCALE_FACTOR,g_virtual_image.rows/RESCALE_FACTOR));

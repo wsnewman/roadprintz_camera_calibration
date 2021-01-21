@@ -102,7 +102,7 @@ int main(int argc, char** argv) {
     while (ros::ok()) {
         ros::Duration(0.5).sleep();
         image_pub.publish(image_msg_ptr);
-        ROS_INFO("publishing...");
+       // ROS_INFO("publishing...");
     }
 
     return 0;
