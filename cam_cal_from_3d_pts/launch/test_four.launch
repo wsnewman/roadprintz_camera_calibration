@@ -1,13 +1,13 @@
 <launch>
 	<node
 		name="testee"
-		type="test_main"
+		type="test_main_four"
 		pkg="cam_cal_from_3d_pts"
 		output="screen"
 		required="true"
 		args="
-			$(find cam_cal_from_3d_pts)/data/image1_key_pts_metric.csv
-			$(find cam_cal_from_3d_pts)/data/image1_pretransformed_corners.csv
+			$(find cam_cal_from_3d_pts)/data/image_key_pts_metric.csv
+			$(find cam_cal_from_3d_pts)/data/image_key_pts_pixels.csv
 			$(find cam_cal)/calibrations/stella_calibrated.yml
 		"
 	/>
