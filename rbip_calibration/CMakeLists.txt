@@ -84,7 +84,8 @@ cs_add_executable(openCV_utils_example_main src/openCV_utils_example_main.cpp)
 cs_add_executable(cam_poster_calib_test_service_node src/cam_poster_calib_test_service_node.cpp)
 cs_add_executable(cam_poster_calib_test_main src/cam_poster_calib_test_main.cpp)
 
-cs_add_executable(cam_poster_calib_test_service_node_v2 src/cam_poster_calib_test_service_node_v2.cpp)
+#cs_add_executable(cam_poster_calib_test_service_node_v2 src/cam_poster_calib_test_service_node_v2.cpp)
+cs_add_executable(cam_poster_calib_test_service_node_v3 src/cam_poster_calib_test_service_node_v3.cpp)
 
 
 #cs_add_executable(wsn_ceres_helloworld src/wsn_ceres_helloworld.cpp)
@@ -133,7 +134,8 @@ target_link_libraries(fake_publish_camera_from_image  ${OpenCV_LIBS})
 target_link_libraries( openCV_utils_example_main openCV_utils ${OpenCV_LIBS})
 target_link_libraries( cam_poster_calib_test_service_node openCV_utils ${OpenCV_LIBS})
 
-target_link_libraries( cam_poster_calib_test_service_node_v2 openCV_utils ${OpenCV_LIBS})
+#target_link_libraries( cam_poster_calib_test_service_node_v2 openCV_utils ${OpenCV_LIBS})
+target_link_libraries( cam_poster_calib_test_service_node_v3 openCV_utils ${OpenCV_LIBS})
 
 
 cs_install()
