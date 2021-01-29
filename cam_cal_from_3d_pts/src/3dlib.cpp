@@ -522,7 +522,6 @@ namespace cal{
 			return a;
 		}
 		
-		
 		return match_points(
 			vec_3d,
 			vec_uv,
@@ -540,13 +539,15 @@ namespace cal{
 		double & accuracy
 	){
 		int n = vec_3d.size();
+		
+		Eigen::Affine3d si = seed.inverse();
 	
-		Eigen::Vector3d ea = seed.rotation().eulerAngles(2, 1, 0);
+		Eigen::Vector3d ea = si.rotation().eulerAngles(2, 1, 0);
    	
 		double t_array [3] = {
-			seed.translation().x(),
-			seed.translation().y(),
-			seed.translation().z()
+			si.translation().x(),
+			si.translation().y(),
+			si.translation().z()
 		};
 		double r_array [3] = {
 			cc_utils::rtod(ea.z()),
@@ -606,6 +607,6 @@ namespace cal{
    		a.translation() = Eigen::Vector3d(t_array[0], t_array[1], t_array[2]);
    		
    		accuracy = cc_utils::rms();
-		return a;
+		return a.inverse();
 	}
 }
