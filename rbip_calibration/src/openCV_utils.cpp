@@ -74,6 +74,9 @@ bool find_poster_in_image(Mat input_image, int n_keypts_wide, int n_keypts_high,
     x_upper_left=corners[0].x;
     y_upper_left=corners[0].y;
     
+    g_x_pix_keypt = corners[index_key_point].x;
+    g_y_pix_keypt = corners[index_key_point].y;
+
     
   
     
@@ -87,6 +90,10 @@ bool find_poster_in_image(Mat input_image, int n_keypts_wide, int n_keypts_high,
 //OpenCvUtils::OpenCvUtils() {
 //    ROS_INFO("OpenCvUtils constructor");
 //}
+
+OpenCvUtils::OpenCvUtils(string image_topic) {
+ g_input_image_topic=image_topic;
+}
 
     //call next fnc to find key points of a checkerboard
     //specify how many key points: n_keypts_wide x n_keypts_high interior corners among squares

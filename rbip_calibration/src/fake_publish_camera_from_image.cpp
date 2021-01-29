@@ -23,7 +23,8 @@
 std::string image_topic0="/camera_pretransformed/image_raw";
 std::string image_topic1="/camera_pretransformed/image_rect_color";
 std::string g_image_topic;
-std::string image_topic2="/camera/image_rect_color";
+std::string image_topic2="/virtual_camera/image_rect_color";
+std::string image_topic3="/camera/image_rect_color";
 
 using namespace std;
 
@@ -50,7 +51,9 @@ int main(int argc, char** argv) {
     ROS_INFO("run this node from the directory that contains the image of interest");
     cout<<"enter 0 to publish to /camera_pretransformed/image_raw"<<endl;
     cout<<"enter 1 to publish to /camera_pretransformed/image_rect_color"<<endl;
-    cout<<"enter 2 to publish to /camera/image_rect_color:  ";
+    cout<<"enter 2 to publish to /virtual_camera/image_rect_color:  "<<endl;
+    cout<<"enter 3 to publish to /camera/image_rect_color:  ";
+
     cin>>topic_choice;
     if (topic_choice==0) {
         g_image_topic = image_topic0;
@@ -61,6 +64,9 @@ int main(int argc, char** argv) {
     else if (topic_choice==2) {
         g_image_topic = image_topic2;
     }
+    else if (topic_choice==3) {
+        g_image_topic = image_topic3; 
+    }    
     else {
         ROS_ERROR("topic choice not recognized");
         exit(0);
@@ -96,7 +102,7 @@ int main(int argc, char** argv) {
     while (ros::ok()) {
         ros::Duration(0.5).sleep();
         image_pub.publish(image_msg_ptr);
-        ROS_INFO("publishing...");
+       // ROS_INFO("publishing...");
     }
 
     return 0;

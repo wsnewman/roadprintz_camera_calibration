@@ -54,7 +54,6 @@
 <build_depend>pcl_generator</build_depend>
 <build_depend>camera_parameters</build_depend>
 <build_depend>roadprintz_msgs</build_depend>
-<build_depend>pcl_generator</build_depend>
 
 
   <run_depend>roscpp</run_depend>
@@ -71,7 +70,6 @@
 <run_depend>pcl_generator</run_depend>
 <run_depend>camera_parameters</run_depend>
 <run_depend>roadprintz_msgs</run_depend>
-<run_depend>pcl_generator</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->
