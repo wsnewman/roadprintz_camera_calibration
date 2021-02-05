@@ -38,7 +38,7 @@ const double KPIX = 590.0; //pixels per meter for virtual image; MUST MAKE THIS 
 
 const double PATCH_HALFWIDTH=0.04; //examine +/- this much in x and y direction for patch about nominal x,y
 const double START_SEARCH_HEIGHT=1.0; //follow optical ray from max height of this much until find where ray intersects LIDAR height
-const double SEARCH_HEIGHT_DZ = 0.01; //sample points at this increment of z-height
+const double SEARCH_HEIGHT_DZ = 0.002; //sample points at this increment of z-height
 
 double cx_virt = g_virt_image_width/2.0;
 double cy_virt = g_virt_image_height/2.0;
@@ -329,8 +329,10 @@ bool compute_target_from_pixels(double cam_x,double cam_y, double &target_x, dou
     Eigen::Vector3d pt_on_poster_wrt_RBIP;
     pt_on_poster_wrt_RBIP = O_cam_wrt_RBIP+veclen*opt_vec;
     ROS_INFO_STREAM("pt_on_poster_wrt_RBIP: "<<pt_on_poster_wrt_RBIP.transpose()<<endl);
+    ROS_INFO_STREAM("test_pt_wrt_RBIP: "<<test_pt_wrt_RBIP.transpose()<<endl);
+    
         
-        
+    //redo this using pt_on_RBIP_plane_wrt_RBIP and  test_vec_unit_height and    
         
     target_x= pt_on_poster_wrt_RBIP[0]; //1.5;
     target_y=pt_on_poster_wrt_RBIP[1];//0.0;

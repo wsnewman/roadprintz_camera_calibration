@@ -1,0 +1,12 @@
+laser-pointing debug
+
+pt_on_RBIP_plane_wrt_RBIP seems good (get good pointing accuracy on floor)
+
+height of laser appears OK--so patch-finding is likely OK
+
+running on _bad_move scan and corresponding virtual image...
+
+pt_on_poster_wrt_RBIP:  1.56614   1.4231 0.374445
+test_pt_wrt_RBIP:       1.56607   1.42226   0.376
+
+these look consistent
