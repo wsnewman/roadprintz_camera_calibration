@@ -20,7 +20,7 @@ using namespace std;
 using namespace cv;
 int g_ans = 0;
 
-string g_input_image_topic="/camera/image_raw"; //set input topic name
+string g_input_image_topic="/camera/color/image_raw"; //set input topic name
 Mat g_src;
 bool g_got_new_image=false;
 
@@ -30,16 +30,16 @@ bool g_got_new_image=false;
 
 //const int N_SCAN_SAVES = 3;
 
-const double X_MIN = 1.7; //1.75; //map runs from this min value...
-const double X_MAX = 1.7; //5.5; //map out this far from rear wheels. Increased due to weird behavior in interpolation towards the limits
+const double X_MIN = 2; //1.75; //map runs from this min value...
+const double X_MAX = 2; //5.5; //map out this far from rear wheels. Increased due to weird behavior in interpolation towards the limits
 const double Y_MIN = 0; //3.0; //map this far to left
 const double Y_MAX = 0; //3.0; //and this far to right
-const double Z_MIN = 0.5;
-const double Z_MAX = 1.3;
+const double Z_MIN = 0.9;
+const double Z_MAX = 1.4;
 
 const double DX = 0.5;
 const double DY = 0.5;
-const double DZ = 0.2;
+const double DZ = 0.1;
 
 const double EPS = 0.01; //for tolerances
 

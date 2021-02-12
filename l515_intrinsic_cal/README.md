@@ -14,7 +14,8 @@ Can use this node to help tune these parameters:
 which works in conjuction with:
 `rosrun test_moves l515_move_service`
 and:
-`roslaunch realsense2_camera rs_camera.launch` 
+
+`roslaunch realsense2_camera rp_rs_camera.launch`
 
 After establishing values for coordinator, run the coordinator as follows:
 

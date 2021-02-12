@@ -1,0 +1,75 @@
+example: x=2.05, y=0, z=1 shows poster at "bottom" of view
+
+
+change tool angle from 180deg to 17 deg
+  so add 2.84 rad to orientation command
+REDO:
+xmax = 2.2
+xmin = 1.9
+y_max = 0.2
+y_min = 
+
+recenter poster at (2,0,1)
+xmax =2.15
+xmin =1.85
+ymax 0.23
+ymin -0.23
+
+FOR EXTRINSICS:
+try: center on x,y = 2.0, 0
+run z = 0.9 to 0.4 in steps of 0.1
+
+small poster squares measurement:
+45.2 cm (452mm), 9 squares -->1.977"
+  try adding 0.5mm: 1.979"
+ if assume sqr is 2.000"--> 50.8mm*9 = 457.2mm
+--> 50.2mm width
+
+short dim: 7 squares, 351mm --> 50.14mm square height
+
+
+FOR LARGE POSTER: z-height of flange = 0.2 is pretty nice
+
+large_poster_feature1.png at:
+- Translation: [1.760, 0.020, 0.200]
+- Rotation: in Quaternion [0.150, 0.989, 0.000, -0.000]
+            in RPY (radian) [3.142, -0.000, 2.840]
+            in RPY (degree) [180.000, -0.001, 162.720]
+
+large_poster_feature2.png at:
+- Translation: [1.800, 0.020, 0.200]
+- Rotation: in Quaternion [0.150, 0.989, -0.000, 0.000]
+            in RPY (radian) [3.142, 0.000, 2.840]
+            in RPY (degree) [180.000, 0.001, 162.721]
+
+
+large_poster_feature3.png at:
+- Translation: [1.800, 0.040, 0.200]
+- Rotation: in Quaternion [0.150, 0.989, -0.000, 0.000]
+            in RPY (radian) [-3.142, 0.000, 2.840]
+            in RPY (degree) [-179.999, 0.003, 162.736]
+
+
+large_poster_feature4.png at:
+- Translation: [1.720, 0.020, 0.200]
+- Rotation: in Quaternion [0.150, 0.989, -0.000, 0.000]
+            in RPY (radian) [3.142, 0.000, 2.840]
+            in RPY (degree) [180.000, 0.001, 162.720]
+
+
+large_poster_feature5.png at:
+- Translation: [1.760, 0.040, 0.200]
+- Rotation: in Quaternion [0.150, 0.989, -0.000, 0.000]
+            in RPY (radian) [3.142, 0.000, 2.840]
+            in RPY (degree) [180.000, 0.001, 162.718]
+6:
+- Translation: [1.760, 0.000, 0.200]
+- Rotation: in Quaternion [0.150, 0.989, 0.000, 0.000]
+            in RPY (radian) [3.142, 0.000, 2.840]
+            in RPY (degree) [180.000, 0.001, 162.719]
+
+
+
+
+
+
