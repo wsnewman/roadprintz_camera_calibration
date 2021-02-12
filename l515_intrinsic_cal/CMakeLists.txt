@@ -32,6 +32,7 @@ catkin_simple()
 # Executables: uncomment the following and edit arguments to compile new nodes
 # may add more of these lines for more nodes from the same package
 cs_add_executable(l515_intrinsic_calib_data_acq_coordinator src/l515_intrinsic_calib_data_acq_coordinator.cpp)
+cs_add_executable(l515_extrinsic_calib_data_acq_coordinator src/l515_extrinsic_calib_data_acq_coordinator.cpp)
 
 #the following is required, if desire to link a node in this package with a library created in this same package
 # edit the arguments to reference the named node and named library within this package

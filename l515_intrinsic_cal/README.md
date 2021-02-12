@@ -42,5 +42,13 @@ post-process the images in the l515_intrinsic_data/ directory to obtain the came
 
 (still need to obtain the extrinsic camera-mount properties)
 
+extrinsic calibration coordinator (in spite of this package name):
+
+Run same as above, but coordinator is:
+
+`rosrun l515_intrinsic_cal l515_extrinsic_calib_data_acq_coordinator`
+
+This will put data in: 
+ros_ws_path + "/stella_calib_data/l515_extrinsic_data/"
 
     
