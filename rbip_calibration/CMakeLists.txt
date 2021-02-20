@@ -76,6 +76,11 @@ cs_add_executable(rbip_image_projector src/rbip_image_projector.cpp)
 
 
 cs_add_executable(find_poster_9x7 src/find_poster_9x7.cpp)
+cs_add_executable(find_poster_9x7_all_images src/find_poster_9x7_all_images.cpp)
+cs_add_executable(find_poster_9x7_all_extrinsic_images src/find_poster_9x7_all_extrinsic_images.cpp)
+
+cs_add_executable(find_poster_10x7 src/find_poster_10x7.cpp)
+
 
 cs_add_executable(fake_publish_camera_from_image src/fake_publish_camera_from_image.cpp)
 
@@ -119,6 +124,12 @@ target_link_libraries( find_poster_v2  ${OpenCV_LIBS})
 
 
 target_link_libraries( find_poster_9x7  ${OpenCV_LIBS})
+target_link_libraries( find_poster_9x7_all_images  ${OpenCV_LIBS})
+target_link_libraries( find_poster_9x7_all_extrinsic_images  ${OpenCV_LIBS})
+
+target_link_libraries( find_poster_10x7  ${OpenCV_LIBS})
+
+
 #target_link_libraries( find_poster_from_lidar  ${OpenCV_LIBS})
 target_link_libraries( find_poster_in_lidar_image  ${OpenCV_LIBS})
 

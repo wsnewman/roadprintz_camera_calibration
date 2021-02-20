@@ -25,6 +25,7 @@ std::string image_topic1="/camera_pretransformed/image_rect_color";
 std::string g_image_topic;
 std::string image_topic2="/virtual_camera/image_rect_color";
 std::string image_topic3="/camera/image_rect_color";
+std::string image_topic4="/camera/color/image_raw";
 
 using namespace std;
 
@@ -52,7 +53,8 @@ int main(int argc, char** argv) {
     cout<<"enter 0 to publish to /camera_pretransformed/image_raw"<<endl;
     cout<<"enter 1 to publish to /camera_pretransformed/image_rect_color"<<endl;
     cout<<"enter 2 to publish to /virtual_camera/image_rect_color:  "<<endl;
-    cout<<"enter 3 to publish to /camera/image_rect_color:  ";
+    cout<<"enter 3 to publish to /camera/image_rect_color:  "<<endl;
+    cout<<"enter 4 to publish to /camera/color/image_raw (L515 topic):  ";
 
     cin>>topic_choice;
     if (topic_choice==0) {
@@ -67,6 +69,9 @@ int main(int argc, char** argv) {
     else if (topic_choice==3) {
         g_image_topic = image_topic3; 
     }    
+    else if (topic_choice==4) {
+        g_image_topic = image_topic4; 
+    }     
     else {
         ROS_ERROR("topic choice not recognized");
         exit(0);
