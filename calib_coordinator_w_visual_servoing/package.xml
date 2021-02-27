@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package>
-  <name>rbip_calibration</name>
+  <name>calib_coordinator_w_visual_servoing</name>
   <version>0.0.0</version>
-  <description>The rbip_calibration package</description>
+  <description>The calib_coordinator_w_visual_servoing package</description>
   
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
@@ -44,35 +44,25 @@
 <build_depend>image_transport</build_depend>
 <build_depend>cv_bridge</build_depend>
 <build_depend>sensor_msgs</build_depend>
-<build_depend>geometry_msgs</build_depend>
-<build_depend>std_srvs</build_depend>
-<build_depend>pcl_generator</build_depend>
-<build_depend>LidarScanUtils</build_depend>
-<build_depend>tf</build_depend>
-<build_depend>xform_utils</build_depend>
 <build_depend>test_moves</build_depend>
-<build_depend>pcl_generator</build_depend>
-<build_depend>camera_parameters</build_depend>
-<build_depend>roadprintz_msgs</build_depend>
+<build_depend>single_corner</build_depend>
+<build_depend>std_msgs</build_depend>
 <build_depend>std_srvs</build_depend>
+<build_depend>rbip_calibration</build_depend>
+<build_depend>pcl_generator</build_depend>
+
 
 
   <run_depend>roscpp</run_depend>
 <run_depend>image_transport</run_depend>
 <run_depend>cv_bridge</run_depend>
 <run_depend>sensor_msgs</run_depend>
-<run_depend>geometry_msgs</run_depend>
-<run_depend>std_srvs</run_depend>
-<run_depend>pcl_generator</run_depend>
-<run_depend>LidarScanUtils</run_depend>
-<run_depend>tf</run_depend>
-<run_depend>xform_utils</run_depend>
 <run_depend>test_moves</run_depend>
-<run_depend>pcl_generator</run_depend>
-<run_depend>camera_parameters</run_depend>
-<run_depend>roadprintz_msgs</run_depend>
+<run_depend>single_corner</run_depend>
+<run_depend>std_msgs</run_depend>
 <run_depend>std_srvs</run_depend>
-
+<run_depend>rbip_calibration</run_depend>
+<run_depend>pcl_generator</run_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

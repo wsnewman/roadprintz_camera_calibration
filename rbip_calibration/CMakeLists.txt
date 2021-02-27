@@ -67,6 +67,9 @@ cs_add_executable(find_poster src/find_poster.cpp)
 cs_add_executable(find_poster_v2 src/find_poster_v2.cpp)
 #cs_add_executable(find_poster_from_lidar src/find_poster_from_lidar.cpp)
 cs_add_executable(find_poster_in_lidar_image src/find_poster_in_lidar_image.cpp)
+cs_add_executable(find_poster_in_lidar_image_10x7 src/find_poster_in_lidar_image_10x7.cpp)
+cs_add_executable(example_find_poster_client src/example_find_poster_client.cpp)
+
 
 #cs_add_executable(find_extrinsics src/manual_find_extrinsics.cpp)
 #cs_add_executable(find_extrinsics_v2 src/find_extrinsics_v2.cpp)
@@ -80,6 +83,8 @@ cs_add_executable(find_poster_9x7_all_images src/find_poster_9x7_all_images.cpp)
 cs_add_executable(find_poster_9x7_all_extrinsic_images src/find_poster_9x7_all_extrinsic_images.cpp)
 
 cs_add_executable(find_poster_10x7 src/find_poster_10x7.cpp)
+cs_add_executable(find_poster_in_lidar_image_10x7_service src/find_poster_in_lidar_image_10x7_service.cpp)
+cs_add_executable(find_poster_in_camera_image_10x7_service src/find_poster_in_camera_image_10x7_service.cpp)
 
 
 cs_add_executable(fake_publish_camera_from_image src/fake_publish_camera_from_image.cpp)
@@ -128,10 +133,13 @@ target_link_libraries( find_poster_9x7_all_images  ${OpenCV_LIBS})
 target_link_libraries( find_poster_9x7_all_extrinsic_images  ${OpenCV_LIBS})
 
 target_link_libraries( find_poster_10x7  ${OpenCV_LIBS})
+target_link_libraries( find_poster_in_lidar_image_10x7_service  ${OpenCV_LIBS})
+target_link_libraries(find_poster_in_camera_image_10x7_service ${OpenCV_LIBS})
 
 
 #target_link_libraries( find_poster_from_lidar  ${OpenCV_LIBS})
 target_link_libraries( find_poster_in_lidar_image  ${OpenCV_LIBS})
+target_link_libraries( find_poster_in_lidar_image_10x7  ${OpenCV_LIBS})
 
 #target_link_libraries( manual_find_extrinsics  ${OpenCV_LIBS})
 #target_link_libraries( find_extrinsics_v2  ${OpenCV_LIBS})

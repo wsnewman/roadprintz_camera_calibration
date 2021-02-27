@@ -4,6 +4,7 @@ int32 GO_TO_CAMERA_POSE=0
 int32 TAKE_SNAPSHOT=1
 int32 GO_TO_TARGET_POSE=2
 int32 cmd_code
+string fname
 ---
 int32 OK=0
 int32 NOT_IN_CAMERA_POSE=1

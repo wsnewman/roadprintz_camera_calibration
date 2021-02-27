@@ -1,9 +1,11 @@
-//v2: consult surface map to get metric coords w/rt RBIP for a pt near center of checkerboard
+//modify calibration test node to attempt first step of automating camera calibration with poster
+//uses 10x7 poster
+//uses nominal extrinsics, as used to create virtual images (on the RBIP plane)
 
-
-//node to test camera calibration using 5x7 small poster
-//hosts a service for snapshot, move, rtn to camera pose
 //has a client of motion-control service to communicate with node: test_moves/test_laser_moves_RBIP_frame
+// better: change to use test_moves/l515_move_service
+
+//does NOT use 3D surface map
 
 #include <ros/ros.h>
 #include <geometry_msgs/Point.h>
@@ -16,11 +18,6 @@
 #include <Eigen/Geometry>
 
 //MAGIC NUMBERS:
-
-//virtual image values (after perspective transform)
-//where to get these...must be consistent w/ perspective transform node;
-//parameter server?  publish by perspective transform node? put in an include file associated w/ perspective transformer?
-//launch file frame publisher for virtual_camera_frame?
 
 #include <camera_parameters/virtual_cam_params.h>
 
@@ -36,13 +33,29 @@ const double VIRT_CAM_X_OFFSET=1.45; //choose this to be near the physical camer
 const double KPIX = 590.0; //pixels per meter for virtual image; MUST MAKE THIS SAME AS IN PERSPECTIVE_TRANSFORM NOD
 */
 
-const double PATCH_HALFWIDTH=0.04; //examine +/- this much in x and y direction for patch about nominal x,y
-const double START_SEARCH_HEIGHT=1.0; //follow optical ray from max height of this much until find where ray intersects LIDAR height
-const double SEARCH_HEIGHT_DZ = 0.002; //sample points at this increment of z-height
+/* strategy for visual servoing:
+ VISUAL SERVOING:
+SIGNS AND DIRECTIONS are specific to sensor mount orientation and to rot ROTZ = 2.84rad
 
-double cx_virt = g_virt_image_width/2.0;
-double cy_virt = g_virt_image_height/2.0;
+name central pixel (per extrinsic rotation) = (327.9,251.4) = (uc,vc)
 
+  generalize: say fiducial found at (x_fid,y_fid)
+  error in pixels = (u_fid,v_fid) - (uc,vc)
+  move robot by (dx,dy) = [(v_fid-vc), (u_fid-uc)]/4100
+
+repeat algorithm:
+ move to z=0.2m and ROTZ = 2.84
+ find fiducial, (u_fid,v_fid)
+ compute motion correction: (dx,dy) = [(v_fid-vc), (u_fid-uc)]/4100
+ move robot and repeat corrections until desired tolerance (e.g. 1mm? better, converge to 1 pixel--> 0.2mm)
+
+ */
+
+const double L515_INSPECTION_HEIGHT = 0.2; // desired height of toolflange-mounted camera
+const double L515_THETAZ = 2.84;
+const double L515_ROT_CTR_UC = 327.9;
+const double L515_ROT_CTR_VC = 251.4;
+const double L515_PIX_PER_METER = 4100;
 
 
 OpenCvUtils *g_open_cv_utils_ptr;
@@ -50,7 +63,6 @@ OpenCvUtils *g_open_cv_utils_ptr;
 using namespace std;
 int g_ans=0;
 ros::ServiceClient *g_client_ptr;
-ros::ServiceClient *g_mapper_client_ptr;
 
 double g_target_x=1.5;
 double g_target_y=0.0;
@@ -60,130 +72,17 @@ bool g_got_target=false;
 string g_image_filename;
 
  Eigen::Affine3d g_affine_virt_cam_wrt_RBIP;
+double g_cx_virt = g_virt_image_width/2.0;
+double g_cy_virt = g_virt_image_height/2.0;
 
 //stuff for lidar map:
  //global pointer for surface map service:
 ros::ServiceClient *g_surface_map_service_client_ptr;
-pcl_generator::MapperSrv g_map_srv;
 
-std::vector<std::vector<double>> g_filtered_surface_map;
-
-int g_N_X; //= srv.response.map_nx;
-int g_N_Y; // = srv.response.map_ny;
-double g_Y_RES; // = srv.response.map_y_res;
-double g_X_RES; // = srv.response.map_x_res;
-double g_X_MIN; // = srv.response.map_x_min;
-double g_Y_MIN; // = srv.response.map_y_min;
-bool g_got_new_map = false;
 
 bool g_verbose_interp = true;
 
-//convert (x,y) metric to indices of height-map table
-//these are NOT the same as pixels!
-int y_to_j(double y) {
-    int j = 0;
-    j = floor((y - g_Y_MIN) / g_Y_RES);
-    if (j < g_N_Y && j>-1) return j;
-    else return -1;
-}
 
-int x_to_i(double x) {
-    int i = 0;
-
-    i = floor((x - g_X_MIN) / g_X_RES);
-    if (i < g_N_X && i>-1) return i;
-    else return -1;
-}
-
-int y_to_j_round(double y) {
-    int j = 0;
-    j = round((y - g_Y_MIN) / g_Y_RES);
-    if (j < g_N_Y && j>-1) return j;
-    else return -1;
-}
-
-int x_to_i_round(double x) {
-    int i = 0;
-
-    i = round((x - g_X_MIN) / g_X_RES);
-    if (i < g_N_X && i>-1) return i;
-    else return -1;
-}
-
-
-
- bool get_lidar_map() {
-         ROS_INFO("Requesting map matrix");
-        
-           g_map_srv.request.request_code=pcl_generator::MapperSrvRequest::REQUEST_MAP_MATRIX;
-
-        g_surface_map_service_client_ptr->call(g_map_srv);
-        bool response_code= g_map_srv.response.response_code;
-        ROS_INFO("service returned %d",response_code);
-        if (response_code!=pcl_generator::MapperSrvResponse::SUCCESS) {
-            
-            ROS_ERROR("failed response from mapper service");
-            g_got_new_map=false;
-            return false;
-        }
-        //got a  map; unpack it
-
-                g_N_X = g_map_srv.response.map_nx;
-                g_N_Y = g_map_srv.response.map_ny;
-                g_Y_RES = g_map_srv.response.map_y_res;
-                g_X_RES = g_map_srv.response.map_x_res;
-                g_X_MIN = g_map_srv.response.map_x_min;
-                g_Y_MIN = g_map_srv.response.map_y_min;
-
-                //ROS_INFO("N_X, N_Y = %d, %d",g_N_X,g_N_Y);
-                //ROS_INFO("X_MIN,Y_MIN = %f, %f",g_X_MIN,g_Y_MIN);
-                //ROS_INFO("X_RES,Y_RES = %f, %f",g_X_RES,g_Y_RES);
-        
-            //convert the received vec of vecs message into a std vec of vecs 
-            int nvecs = g_map_srv.response.vec_of_vec_of_doubles.size();//vec_of_vec_of_doubles
-            //ROS_INFO("vec of vecs contains %d vectors",nvecs);
-            //ROS_INFO("unpacking the vec of vecs...");
-            std::vector<double> vec_of_dbls;
-            g_filtered_surface_map.clear();
-            roadprintz_msgs::VecOfDoubles vec_of_dbls_msg;
-            for (int ivec=0;ivec<nvecs;ivec++) {
-                vec_of_dbls_msg = g_map_srv.response.vec_of_vec_of_doubles[ivec];//vec_of_vec_of_doubles
-                vec_of_dbls=vec_of_dbls_msg.dbl_vec;
-                g_filtered_surface_map.push_back(vec_of_dbls);
-            }
-            //ROS_INFO("received/repackaged map vec of vec of doubles: ");
-            g_got_new_map=true;
-            return true;
- }
- 
- bool interpolate_z_of_xy(double x, double y, double &z) {
-    int i = x_to_i_round(x);
-    int j = y_to_j_round(y);
-    if (g_verbose_interp)  ROS_INFO("x_to_i, y_to_j = %d, %d",i,j);
-    if ((i < 0) || (j < 0) || (i> g_N_X-2) || (j> g_N_Y-2) ) {
-        z=0; //default if cannot interpolate
-        return false; 
-    }//impossibly high z-value if ask for values out of range
-    //if (i >=g_N_X - 1) return false;
-    //if (j >= g_N_Y - 1) return false;
-    //if here, i and j can be interpolated to i+1, j+1
-    //g_unfiltered_surface_map can be upgraded to filtered: TODO
-    double z00 = g_filtered_surface_map[i][j];
-    double z10 = g_filtered_surface_map[i + 1][j];
-    double z01 = g_filtered_surface_map[i][j + 1];
-    double z11 = g_filtered_surface_map[i + 1][j + 1];
-    double dx = (x - (g_X_MIN + i * g_X_RES)) / g_X_RES;
-    double dy = (y - (g_Y_MIN + j * g_Y_RES)) / g_Y_RES;
-    //unit-square formula: z(x,y) = z00*(1-dx)*(1-dy) + z10*dx*(1-dy)+z01*(1-dx)*dy+z11*dx*dy
-    z = z00 * (1 - dx)*(1 - dy) + z10 * dx * (1 - dy) + z01 * (1 - dx) * dy + z11 * dx*dy;
-
-    if (g_verbose_interp)ROS_INFO("interpolator: x,y = %f, %f; i,j= %d, %d",x,y,i,j);
-    if (g_verbose_interp)ROS_INFO("z00, z10, z01, z11 = %f, %f, %f, %f",z00,z10,z01,z11);
-    if (g_verbose_interp)ROS_INFO("dx, dy = %f, %f; interpolated z = %f",dx,dy,z);
-    //return z;
-    return true;
-}
- 
 
 Eigen::Affine3d get_hardcoded_affine_virtual_cam_wrt_RBIP(void) {
 	Eigen::Affine3d hardcoded_affine_cam_wrt_RBIP;
@@ -219,23 +118,17 @@ bool compute_target_from_pixels(double cam_x,double cam_y, double &target_x, dou
     //given camera pixels, compute the corresponding point projected onto the RBIP plane, in the virtual-camera frame:
     Eigen::Vector3d pt_on_RBIP_plane_wrt_virt_cam;
     
-    //get the LIDAR map:
-    if(!get_lidar_map()) {
-        ROS_WARN("could not get lidar map!");
-        return false;
-    }
-    //if here, have a valid LIDAR map
-    
-    
     
     //here is a point projected onto the RBIP plane:
     pt_on_RBIP_plane_wrt_virt_cam[2] = VERT_CAM_HEIGHT;
-    pt_on_RBIP_plane_wrt_virt_cam[0] = (cam_x-cx_virt)/KPIX;
-    pt_on_RBIP_plane_wrt_virt_cam[1] = (cam_y-cy_virt)/KPIX;
+    pt_on_RBIP_plane_wrt_virt_cam[0] = (cam_x-g_cx_virt)/KPIX;
+    pt_on_RBIP_plane_wrt_virt_cam[1] = (cam_y-g_cy_virt)/KPIX;
     ROS_INFO_STREAM("pt_on_RBIP_plane_wrt_virt_cam: "<<pt_on_RBIP_plane_wrt_virt_cam.transpose()<<endl);
     Eigen::Vector3d pt_on_RBIP_plane_wrt_RBIP;
     pt_on_RBIP_plane_wrt_RBIP =   g_affine_virt_cam_wrt_RBIP*pt_on_RBIP_plane_wrt_virt_cam;
     ROS_INFO_STREAM("pt_on_RBIP_plane_wrt_RBIP: "<<pt_on_RBIP_plane_wrt_RBIP.transpose()<<endl);
+
+    /*  skip map-height inspection  xx
     Eigen::Vector3d vec_from_pt_on_RBIP_plane_to_camera;
     
         Eigen::Vector3d O_cam_wrt_RBIP = g_affine_virt_cam_wrt_RBIP.translation();    
@@ -296,6 +189,8 @@ bool compute_target_from_pixels(double cam_x,double cam_y, double &target_x, dou
             //response.success=false;
             return false;
         }
+        
+        
         //if good to here, charge on;
         Eigen::Vector3d plane_normal;
         double plane_offset = map_srv.response.plane_dist;
@@ -320,8 +215,8 @@ bool compute_target_from_pixels(double cam_x,double cam_y, double &target_x, dou
     // use l to compute p/RBIP = O_cam/RBIP + l*[v/(H*Kpix); u/(H*Kpix); -1]
     Eigen::Vector3d opt_vec;
     
-    opt_vec[0] =     (cam_y-cy_virt)/(KPIX*VERT_CAM_HEIGHT);
-    opt_vec[1] =     (cam_x-cx_virt)/(KPIX*VERT_CAM_HEIGHT);
+    opt_vec[0] =     (cam_y-g_cy_virt)/(KPIX*VERT_CAM_HEIGHT);
+    opt_vec[1] =     (cam_x-g_cx_virt)/(KPIX*VERT_CAM_HEIGHT);
     opt_vec[2] = -1.0;
     ROS_INFO_STREAM("optical vector: "<<opt_vec.transpose()<<endl);
     double veclen = (plane_offset - plane_normal.dot(O_cam_wrt_RBIP))/(plane_normal.dot(opt_vec));
@@ -330,13 +225,13 @@ bool compute_target_from_pixels(double cam_x,double cam_y, double &target_x, dou
     pt_on_poster_wrt_RBIP = O_cam_wrt_RBIP+veclen*opt_vec;
     ROS_INFO_STREAM("pt_on_poster_wrt_RBIP: "<<pt_on_poster_wrt_RBIP.transpose()<<endl);
     ROS_INFO_STREAM("test_pt_wrt_RBIP: "<<test_pt_wrt_RBIP.transpose()<<endl);
-    
+    */
         
     //redo this using pt_on_RBIP_plane_wrt_RBIP and  test_vec_unit_height and    
-        
-    target_x= pt_on_poster_wrt_RBIP[0]; //1.5;
-    target_y=pt_on_poster_wrt_RBIP[1];//0.0;
-    target_z = pt_on_poster_wrt_RBIP[2];
+        //pt_on_RBIP_plane_wrt_RBIP
+    target_x= pt_on_RBIP_plane_wrt_RBIP[0]; //1.5;
+    target_y=pt_on_RBIP_plane_wrt_RBIP[1];//0.0;
+    target_z = VERT_CAM_HEIGHT;    //pt_on_poster_wrt_RBIP[2];
     return true;
 }
 
@@ -441,7 +336,9 @@ int main(int argc, char** argv)
 
   g_affine_virt_cam_wrt_RBIP = get_hardcoded_affine_virtual_cam_wrt_RBIP();
 
-    ros::ServiceClient client = nh.serviceClient<test_moves::TestMoveSrv>("test_moves_service");
+    //ros::ServiceClient client = nh.serviceClient<test_moves::TestMoveSrv>("test_moves_service");
+    //use the following service instead, from l515_move_service
+    ros::ServiceClient client = nh.serviceClient<test_moves::TestMoveSrv>("l515_moves_service");
     g_client_ptr = &client;
     
     ros::ServiceClient map_client = nh.serviceClient<pcl_generator::MapperSrv>("surface_map_service");

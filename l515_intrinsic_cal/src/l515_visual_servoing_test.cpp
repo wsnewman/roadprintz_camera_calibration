@@ -319,6 +319,7 @@ int main(int argc, char** argv) {
         cout<<"enter 0 to skip this move (move poster, if desired, before entering 0)"<<endl;
         cout<<"enter 1 to make this move"<<endl;
         cout<<"enter 2 to move to camera pose and quit : ";
+        cout<<"enter 3 to rotate about this point : ";
         cin>>g_ans;
         if (g_ans==2) {
                 srv.request.rtn_to_camera_pose = true;
@@ -337,8 +338,30 @@ int main(int argc, char** argv) {
             
             client.call(srv);
             ros::Duration(1.0).sleep();
-        }        
-    }
+        }     
+        if (g_ans==3) {
+            ROS_INFO("testing rotations");
+            for (int irot=1;irot<4;irot++) {
+                
+                ROS_INFO("starting rotation sequence");
+                srv.request.z_rot_angle_increment.resize(1);  
+                srv.request.rtn_to_camera_pose = false;
+                srv.request.z_rot_angle_increment[0]= irot*M_PI/2.0;
+                if (!client.call(srv)) {
+                    ROS_ERROR("failed service call; quitting");
+                return 1;
+                }
+                ros::Duration(1.0).sleep(); 
+                tp = sc::detect_single_corner(g_src);
+	
+	        ROS_INFO("rot = %f; Found corner location (%f, %f).see image corner_result.png\n\n", srv.request.z_rot_angle_increment[0], tp.x, tp.y);
+                
+            
+            }                
+               
+            }
+            
+        }
 
     return 0;
 }
