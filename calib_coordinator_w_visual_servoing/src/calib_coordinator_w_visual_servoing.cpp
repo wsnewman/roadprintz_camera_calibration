@@ -95,7 +95,7 @@ const double DY = 0.5;
 const double DZ = 0.1;
 
 const double EPS = 0.01; //for tolerances
-const double VISUAL_SERVO_CONVERGENCE_TOL = 0.0002;
+const double VISUAL_SERVO_CONVERGENCE_TOL = 0.0005;
 const int VISUAL_SERVO_MAX_TRIES = 4;
 
 string g_dir_name;
@@ -718,14 +718,21 @@ int main(int argc, char** argv) {
                         move_srv.request.rtn_to_camera_pose = false;
 
                         l515_moves_client.call(move_srv);
-                        ros::Duration(1.0).sleep();
+                        ros::Duration(2.0).sleep();
                     } //done with a move
 
                 } //end of visual servoing iterations
                 ROS_INFO("ceased visual servoing iterations for this keypoint; saving pose info");
+                ROS_INFO("convergence err = %f",convergence_err);
+
                 if (convergence_err < VISUAL_SERVO_CONVERGENCE_TOL) {
+                  ROS_INFO("saving pose info");
+
                   robot_points_file << index_samp << ", " << move_srv.request.x_wrt_RBIP << ", " << move_srv.request.y_wrt_RBIP << endl;
                 } //only save data if visual servoing was successful
+                else {
+                    ROS_WARN("NOT SAVING THIS POINT");
+                }
             }
             ROS_INFO("done examining all key points for this poster");
             robot_points_file.close();

@@ -341,9 +341,10 @@ int main(int argc, char** argv) {
         }     
         if (g_ans==3) {
             ROS_INFO("testing rotations");
-            for (int irot=1;irot<4;irot++) {
+            for (int irot=0;irot<4;irot++) {
+                ROS_INFO("rot %d",irot);
                 
-                ROS_INFO("starting rotation sequence");
+            
                 srv.request.z_rot_angle_increment.resize(1);  
                 srv.request.rtn_to_camera_pose = false;
                 srv.request.z_rot_angle_increment[0]= irot*M_PI/2.0;
@@ -351,11 +352,23 @@ int main(int argc, char** argv) {
                     ROS_ERROR("failed service call; quitting");
                 return 1;
                 }
-                ros::Duration(1.0).sleep(); 
+                ros::Duration(2.0).sleep(); 
+                        ROS_INFO(" acquiring new image...");
+        g_got_new_image=false;
+        while (!g_got_new_image) {
+            ROS_INFO("waiting for image...");
+            ros::spinOnce();
+            ros::Duration(0.5).sleep();
+            ros::spinOnce();
+        }    
+        ROS_INFO("got new image");
+        //image is in g_src
+        ROS_INFO("searching for key point");
                 tp = sc::detect_single_corner(g_src);
 	
 	        ROS_INFO("rot = %f; Found corner location (%f, %f).see image corner_result.png\n\n", srv.request.z_rot_angle_increment[0], tp.x, tp.y);
-                
+                        compute_move_to_feature_center(tp, dx, dy);
+            ROS_INFO("computed visual servo correction: dx, dy = %f, %f",dx,dy);
             
             }                
                
